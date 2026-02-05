@@ -461,6 +461,9 @@ export function addProfile(): void {
             newProfileValues.show_chord_mode,
             newProfileValues.reveal_chord_mode,
             newProfileValues.chord_display_mode,
+            newProfileValues.single_note_mode,
+            newProfileValues.single_note_correctness_mode,
+            newProfileValues.persist_reaction_face,
         );
         STATE.profiles[profile.id] = profile;
         saveState();
