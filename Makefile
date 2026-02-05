@@ -1,4 +1,4 @@
-.PHONY: build check clean test android-deploy generate-audio move-downloaded-chords move-downloaded-notes convert-audio-to-mp3
+.PHONY: build check clean test test-unit test-ui android-deploy generate-audio move-downloaded-chords move-downloaded-notes convert-audio-to-mp3
 
 build: dist/bsharp.js dist/style.css dist/index.html dist/static
 
@@ -17,7 +17,13 @@ dist/static: static
 check:
 	npx tsc --noEmit
 
-test: build
+test-unit:
+	npx vitest run
+
+test-ui: build
+	npx playwright test
+
+test: test-unit build
 	npx playwright test
 
 android-deploy: build

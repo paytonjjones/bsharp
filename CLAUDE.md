@@ -61,6 +61,28 @@ android/             # Android WebView wrapper project
 
 14 chords, ordered: red, yellow, blue, black, green, orange, purple, pink, brown | gray, tan, lightgreen, lightpurple, skyblue. First 9 are "white chords", last 5 are "black chords" (FIRST_BLACK_INDEX = 9).
 
+## Testing
+
+Tests exist to protect behavior, not to increase coverage or test count. Follow the Google testing philosophy.
+
+**What TO test:**
+- Calculations and algorithms (adaptive weighting in `stats.ts`, cumulative sums, coefficient math)
+- Edge cases: zero inputs, empty arrays, boundary conditions, missing/undefined fields
+- Complex transformations: multi-step logic, non-obvious behavior
+- Data integrity: chord definitions are consistent, audio file lists match expected patterns
+
+**What NOT to test:**
+- Don't test implementation details — test behavior, not methods
+- Don't test trivial control flow or simple conditionals
+- Don't create identity tests (output equals input with no transformation)
+- Don't create redundant tests — if two functions share the same logic, test it once
+- Don't test browser/DOM APIs or localStorage directly — trust the platform
+- Don't re-implement the code under test in the assertion
+
+**Use TDD when building or changing features.** Write or update both unit and UI tests first to capture the expected behavior, then implement the code to make them pass. Run `make test-unit` to verify.
+
+**Review and delete useless tests.** When new tests are written, review them critically. If a test re-implements the code under test, delete it. If a test would break during a refactor without a behavior change, delete it.
+
 ## Conventions
 
 - Use brief commit messages (one line, no body)
