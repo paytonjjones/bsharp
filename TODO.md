@@ -3,7 +3,7 @@
 ## Bugs
 
 - [ ] Sometimes the duration of a note continues after the user has clicked something else. Clicking should "halt" the duration of the note.
-- [ ] Expansion bar stays open after profile creation. On mobile, the profile name text can overlap the hamburger icon, making it unclickable. `closeProfileAdder()` should also collapse the expansion bar.
+- [ ] Expansion bar stays open after profile creation. `closeProfileAdder()` should also collapse the expansion bar.
 - [ ] Profile switcher "+" button shares `.switcher-item` class with actual profile buttons. Give them distinct classes so code selecting all profile buttons doesn't accidentally include the add button.
 
 ## UI

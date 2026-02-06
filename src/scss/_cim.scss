@@ -131,6 +131,7 @@ div.menu-container.visible > div.expansion-container {
     display: flex;
     position: static;
     flex-grow: 1;
+    overflow: hidden;
 }
 
 div.menu-container.visible > div.hamburger {
@@ -507,6 +508,14 @@ body.colorscheme-light div.flag {
 
 .infobox-trigger {
     white-space: nowrap;
+}
+
+#profile-text {
+    display: inline-block;
+    max-width: 5em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
 }
 
 /* Infobox styles (for non-panel infoboxes like the pulldown) */

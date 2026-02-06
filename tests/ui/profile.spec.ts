@@ -100,6 +100,27 @@ test("deleting profile switches back to Guest", async ({ page }) => {
   await expect(page.locator("#profile-text")).toHaveText("Guest");
 });
 
+test("hamburger is clickable with long profile name", async ({ page }) => {
+  page.on("dialog", (dialog) => dialog.dismiss());
+
+  await createProfile(page, "A Very Long Profile Name");
+
+  await openMenu(page);
+
+  // Profile text should be visually truncated but still showing some name
+  const profileText = page.locator("#profile-text");
+  const { offsetWidth, scrollWidth } = await profileText.evaluate((el) => ({
+    offsetWidth: (el as HTMLElement).offsetWidth,
+    scrollWidth: el.scrollWidth,
+  }));
+  expect(scrollWidth).toBeGreaterThan(offsetWidth); // text is clipped
+  expect(offsetWidth).toBeGreaterThan(0); // still visible
+
+  // The hamburger should still be clickable to close the menu
+  await page.locator("#hamburger-link").click({ force: false });
+  await expect(page.locator("#menu-container")).not.toHaveClass(/visible/);
+});
+
 test("duplicate profile name shows alert", async ({ page }) => {
   let alertFired = false;
   page.on("dialog", async (dialog) => {
