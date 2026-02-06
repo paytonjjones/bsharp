@@ -18,18 +18,18 @@ test("non-default settings saved to new profile", async ({ page }) => {
   await page
     .locator("input[name='profile_icon_selector'][value='fa-bolt']")
     .check();
-  await page.locator("#persist_reaction_face_setting").check();
+  await page.locator("#persist_reaction_face_setting").uncheck();
 
   await page.locator("#add-user-button").click();
 
-  // Re-open the profile panel and check the checkbox is still checked
+  // Re-open the profile panel and check the checkbox is still unchecked
   const menu = page.locator("#menu-container");
   if (!(await menu.evaluate((el) => el.classList.contains("visible")))) {
     await page.locator("#hamburger-link").click();
     await expect(menu).toHaveClass(/visible/);
   }
   await page.locator("#profile-infobox-trigger").click();
-  await expect(page.locator("#persist_reaction_face_setting")).toBeChecked();
+  await expect(page.locator("#persist_reaction_face_setting")).not.toBeChecked();
 });
 
 test("chord display mode shapes_only hides letters", async ({ page }) => {

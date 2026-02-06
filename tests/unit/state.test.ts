@@ -19,7 +19,7 @@ describe('initializeProfileDefaults', () => {
         expect(partial.show_chord_mode).toBe('black_only');
         expect(partial.reveal_chord_mode).toBe('always');
         expect(partial.chord_display_mode).toBe('shapes_and_letters');
-        expect(partial.persist_reaction_face).toBe(false);
+        expect(partial.persist_reaction_face).toBe(true);
     });
 
     it('does not overwrite existing values', () => {

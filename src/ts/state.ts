@@ -19,7 +19,7 @@ export const DEFAULT_REVEAL_CHORD_MODE = 'always';
 export const DEFAULT_CHORD_DISPLAY_MODE = 'shapes_and_letters';
 export const DEFAULT_SINGLE_NOTE_MODE = 'white_only_on_black';
 export const DEFAULT_SINGLE_NOTE_CORRECTNESS_MODE = 'only_correct';
-export const DEFAULT_PERSIST_REACTION_FACE = false;
+export const DEFAULT_PERSIST_REACTION_FACE = true;
 
 export let STATE: AppState = null!;
 export let _SESSION_HISTORY: Record<string, Record<string, SessionStats[]>> | null = null;

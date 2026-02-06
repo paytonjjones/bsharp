@@ -85,7 +85,7 @@ Tests exist to protect behavior, not to increase coverage or test count. Follow 
 
 ## Conventions
 
-- Use brief commit messages (one line, no body)
+- Use brief commit messages (one line, no body). Do not add Co-Authored-By trailers
 - After any code change, run `make android-deploy` to sync dist/ into the Android assets
 
 ## TODO
