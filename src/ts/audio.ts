@@ -37,8 +37,10 @@ export function audioFileElem(audioFile: AudioFileInfo, onEnded: () => void): HT
         audioFile.elem = document.createElement('audio');
         audioFile.elem.classList.add('chord');
         audioFile.elem.controls = true;
+        audioFile.elem.preload = 'auto';
         audioFile.elem.src = 'static/chords/' + audioFile.filename;
         audioFile.elem.onended = onEnded;
+        audioFile.elem.load();
     }
     return audioFile.elem;
 }
