@@ -90,7 +90,7 @@ test("switching profiles applies that profile chord level", async ({
   // Switch back to Guest (Guest uses fa-user icon)
   await openProfilePanel(page);
   await page
-    .locator("#profile-switcher .switcher-item:has(.fa-user)")
+    .locator("#profile-switcher .switcher-profile:has(.fa-user)")
     .click();
 
   // Guest should have default level (yellow)
@@ -98,7 +98,7 @@ test("switching profiles applies that profile chord level", async ({
 
   // Switch back to Blue Level User (uses fa-paw icon)
   await page
-    .locator("#profile-switcher .switcher-item:has(.fa-paw)")
+    .locator("#profile-switcher .switcher-profile:has(.fa-paw)")
     .click();
 
   await expect(page.locator("#chord-selector")).toHaveValue("blue");

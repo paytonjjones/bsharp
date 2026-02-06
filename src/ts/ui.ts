@@ -322,7 +322,7 @@ function populateProfileSwitcher(): void {
 
     for (const profile of profiles) {
         const btn = document.createElement('button');
-        btn.classList.add('switcher-item');
+        btn.classList.add('switcher-item', 'switcher-profile');
         if (profile.id === currentId) btn.classList.add('active');
         btn.type = 'button';
 
@@ -499,7 +499,7 @@ export function openProfileAdder(): void {
     // Highlight "+" as active in switcher
     const switcher = document.getElementById('profile-switcher');
     if (switcher) {
-        for (const item of switcher.querySelectorAll('.switcher-item') as NodeListOf<HTMLElement>) {
+        for (const item of switcher.querySelectorAll('.switcher-profile') as NodeListOf<HTMLElement>) {
             item.classList.remove('active');
         }
         const addBtn = switcher.querySelector('.switcher-add');

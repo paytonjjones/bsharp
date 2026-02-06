@@ -4,7 +4,6 @@
 
 - [ ] Sometimes the duration of a note continues after the user has clicked something else. Clicking should "halt" the duration of the note.
 - [ ] Expansion bar stays open after profile creation. `closeProfileAdder()` should also collapse the expansion bar.
-- [ ] Profile switcher "+" button shares `.switcher-item` class with actual profile buttons. Give them distinct classes so code selecting all profile buttons doesn't accidentally include the add button.
 
 ## UI
 - [ ] At the beginning, the user MUST click the play button to start the game. But this isn't clear. At this stage, there should be a transparent overlay over the color section that points to the play button and says "play the sound to start". 

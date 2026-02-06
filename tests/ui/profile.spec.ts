@@ -29,7 +29,7 @@ test("panel shows Save Changes and Delete in edit mode", async ({ page }) => {
 test("switcher shows exactly one active profile", async ({ page }) => {
   await openProfilePanel(page);
 
-  const activeItems = page.locator("#profile-switcher .switcher-item.active");
+  const activeItems = page.locator("#profile-switcher .switcher-profile.active");
   await expect(activeItems).toHaveCount(1);
 });
 
