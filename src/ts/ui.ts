@@ -127,15 +127,15 @@ export function populateFlags(
     }
 
     if (colors.length > 9) {
-        baseElem.classList.add('many');
+        baseElem.classList.add('flags-compact');
     } else {
-        baseElem.classList.remove('many');
+        baseElem.classList.remove('flags-compact');
     }
 
     if (colors.length < 4) {
-        baseElem.classList.add('few');
+        baseElem.classList.add('flags-expanded');
     } else {
-        baseElem.classList.remove('few');
+        baseElem.classList.remove('flags-expanded');
     }
 
     if (chordsOn() && getCurrentProfile().reveal_chord_mode === 'always') {

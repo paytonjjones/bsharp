@@ -2,7 +2,13 @@
 
 ## Bugs
 
+- [ ] Sometimes the duration of a note continues after the user has clicked something else. Clicking should "halt" the duration of the note.
+- [ ] Expansion bar stays open after profile creation. On mobile, the profile name text can overlap the hamburger icon, making it unclickable. `closeProfileAdder()` should also collapse the expansion bar.
+- [ ] Profile switcher "+" button shares `.switcher-item` class with actual profile buttons. Give them distinct classes so code selecting all profile buttons doesn't accidentally include the add button.
+
 ## UI
+- [ ] At the beginning, the user MUST click the play button to start the game. But this isn't clear. At this stage, there should be a transparent overlay over the color section that points to the play button and says "play the sound to start". 
+- [ ] In addition to the "play the sound to start" initial overlay, there should be more of a guided tutorial for the first time a profile is doing a session. "Play the sound to start" -> Guess the color -> Try again
 - [ ] Music Trainer (trainer infobox) should be fullscreen with an X to close
 
 ## Features
