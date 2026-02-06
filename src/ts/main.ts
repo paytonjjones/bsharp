@@ -1,7 +1,7 @@
 import { loadState, getCurrentProfile, isRecent, STATE } from './state';
 import {
     playAudio, selectFlag, nextAudio, resetStats, changeSelector,
-    onTrainerOpen, playChord, getEmojiLock
+    onTrainerOpen, playChord, getEmojiLock, stopCurrentAudio
 } from './game';
 import {
     toggleExpansionBar, toggleInfoboxVisibility, toggleStatsHistoryVisibility,
@@ -41,6 +41,13 @@ w.enable_download = enableDownload;
 w.trigger_easter_egg = triggerEasterEgg;
 w.download_state = downloadState;
 w.play_chord = playChord;
+
+// Stop any playing audio when the user clicks an interactive element.
+document.addEventListener('click', (e) => {
+    if ((e.target as Element).closest('[onclick], button, a, select, input')) {
+        stopCurrentAudio();
+    }
+}, true);
 
 document.addEventListener('DOMContentLoaded', function () {
     loadState();

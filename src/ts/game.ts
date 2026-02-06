@@ -49,6 +49,15 @@ function onAudioEnded(): void {
     _AUDIO_PLAYED = true;
 }
 
+export function stopCurrentAudio(): void {
+    if (_CURRENT_AUDIO) {
+        const [chord] = _CURRENT_AUDIO;
+        chord.pause();
+        chord.currentTime = 0;
+    }
+}
+
+
 function _getWeights(): number[] {
     if (_CURRENT_COEFFICIENTS !== null) {
         return _CURRENT_COEFFICIENTS;
@@ -74,6 +83,7 @@ export function selectNewColor(): void {
 
 export function populateAudio(): void {
     selectNewColor();
+    stopCurrentAudio();
 
     const audioFiles = getAudioFiles();
     const files = audioFiles.get(_CORRECT_COLOR!);
