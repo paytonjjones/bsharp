@@ -1,4 +1,4 @@
-.PHONY: build check clean test test-unit test-ui test-screenshot test-screenshot-update android-deploy generate-audio move-downloaded-chords move-downloaded-notes convert-audio-to-mp3
+.PHONY: build check clean test test-unit test-ui test-screenshot test-screenshot-update android-deploy icons generate-audio move-downloaded-chords move-downloaded-notes convert-audio-to-mp3
 
 build: dist/bsharp.js dist/style.css dist/index.html dist/static
 
@@ -35,6 +35,9 @@ test-screenshot-update: build
 android-deploy: build
 	mkdir -p android/app/src/main/assets
 	cp -r dist/* android/app/src/main/assets/
+
+icons:
+	bash scripts/generate_icons.sh
 
 clean:
 	rm -rf dist/*
