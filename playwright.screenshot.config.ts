@@ -1,4 +1,5 @@
-import { defineConfig, devices } from "@playwright/test";
+import { defineConfig } from "@playwright/test";
+import { DEVICE } from "./tests/device";
 
 export default defineConfig({
   testDir: "./tests/screenshot",
@@ -13,12 +14,12 @@ export default defineConfig({
   },
   use: {
     baseURL: "http://localhost:8080",
-    ...devices["Pixel 5"],
+    ...DEVICE,
   },
   projects: [
     {
       name: "chromium",
-      use: { ...devices["Pixel 5"] },
+      use: { ...DEVICE },
     },
   ],
   webServer: {

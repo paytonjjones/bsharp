@@ -3,8 +3,8 @@
 ## Bugs
 
 ## UI
-- Text overlaps in progress screen
 - Onboarding tip to encourage "pin screen" feature to prevent children leaving the app (though this may differ by device)
+- Home logo is sized differently than other logos (screenshot test needed)
 
 ## Features
 - Port single note trainer (audio files ready, UI/logic not wired up)

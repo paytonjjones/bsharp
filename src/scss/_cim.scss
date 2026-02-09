@@ -344,7 +344,7 @@ div.stats {
     flex-grow: 0;
 }
 
-div.stats div {
+div.stats > div {
     margin-right: 0.5em;
     margin-left: 0.5em;
 }
@@ -401,6 +401,7 @@ div.stats-display {
     flex-direction: row;
     align-items: center;
     justify-content: center;
+    white-space: nowrap;
 
     @media only screen and (max-width: 768px) {
         font-size: 1.2em;
@@ -733,13 +734,12 @@ div.stats-history-container {
 }
 
 div.stats-history-container > div.stats-history-item {
-    display: inline-flex;
-    width: fit-content;
-    white-space: nowrap;
-    flex-flow: row nowrap;
-    max-height: 4rem;
-    margin-top: 0.5rem;
-    margin-bottom: 0.5rem;
+    display: grid;
+    grid-template-columns: 2.5rem 1fr;
+    grid-template-rows: auto auto;
+    column-gap: 0.75rem;
+    align-items: center;
+    margin: 0.5rem;
 }
 
 body.colorscheme-dark div.stats-history-container > div.stats-history-item > div.stats-color {
@@ -751,32 +751,17 @@ body.colorscheme-light div.stats-history-container > div.stats-history-item > di
 }
 
 div.stats-history-item > div.stats-color {
-    margin-left: 0.5rem;
-    margin-right: 0.5rem;
-    flex: 0 0 10%;
-    width: 10%;
+    grid-row: 1 / -1;
+    aspect-ratio: 1;
 }
 
 div.stats-history-item > div.stats-date {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-left: 0.5rem;
-    margin-right: 0.5rem;
-    flex: 0 0 20%;
-    @media only screen and (max-width: 1080px) {
-        font-size: 0.8em;
-    }
+    font-size: 0.8em;
 }
 
 div.stats-history-item > div.session-stats {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    margin-left: 0.5rem;
-    margin-right: 0.5rem;
     font-weight: bold;
-    min-width: 20vw;
+    font-size: 0.85em;
 }
 
 /* Flags */
