@@ -20,9 +20,6 @@ $clover_r: url(#clover-rotated-clip-path);
 
 div.note-wrapper > div.note {
     clip-path: $circle;
-    @media only screen and (max-width: 768px) {
-        clip-path: circle(45%);
-    }
 }
 
 div.use-shapes {

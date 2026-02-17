@@ -48,3 +48,95 @@ test("incorrect selection outline", async ({ page }) => {
     "flags-incorrect.png",
   );
 });
+
+// Helper to seed localStorage state at a given level (chord)
+function seedStateAtLevel(chord: string): string {
+  const state = {
+    profiles: {
+      "100": {
+        id: 100,
+        name: "Guest",
+        icon: "fa-user",
+        current_chord: chord,
+        current_instrument: "piano",
+        stats: {
+          current_chord: chord,
+          start_time: 0,
+          updated_time: 0,
+          correct: 0,
+          incorrect: 0,
+          identifications: 0,
+          confusion_matrix: {},
+        },
+        target_number: 10,
+        show_chord_mode: "always",
+        reveal_chord_mode: "name_and_color",
+        chord_display_mode: "shapes_and_letters",
+        single_note_mode: false,
+        single_note_correctness_mode: "wrong_and_right",
+        persist_reaction_face: false,
+        enable_onboarding_hints: false,
+        color_scheme: "dark",
+      },
+    },
+    current_chord: chord,
+    current_profile: 100,
+  };
+  return JSON.stringify(state);
+}
+
+test("tablet layout at high level - no menu overlap", async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 1200 });
+  await page.addInitScript((stateJson: string) => {
+    localStorage.clear();
+    localStorage.setItem("bsharp_state", stateJson);
+    localStorage.setItem(
+      "bsharp_session_history",
+      JSON.stringify({ "100": { skyblue: [{ identifications: 1 }] } }),
+    );
+    (window as any).__bsharp_test_deterministic_color = "red";
+  }, seedStateAtLevel("skyblue"));
+  await page.goto("/");
+  await page.locator("#onboarding-overlay").evaluate((el) => {
+    el.classList.remove("visible");
+  });
+
+  await expect(page).toHaveScreenshot("tablet-high-level.png");
+});
+
+test("mobile layout at high level", async ({ page }) => {
+  await page.addInitScript((stateJson: string) => {
+    localStorage.clear();
+    localStorage.setItem("bsharp_state", stateJson);
+    localStorage.setItem(
+      "bsharp_session_history",
+      JSON.stringify({ "100": { skyblue: [{ identifications: 1 }] } }),
+    );
+    (window as any).__bsharp_test_deterministic_color = "red";
+  }, seedStateAtLevel("skyblue"));
+  await page.goto("/");
+  await page.locator("#onboarding-overlay").evaluate((el) => {
+    el.classList.remove("visible");
+  });
+
+  await expect(page).toHaveScreenshot("mobile-high-level.png");
+});
+
+test("tablet layout at low level", async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 1200 });
+  await page.addInitScript((stateJson: string) => {
+    localStorage.clear();
+    localStorage.setItem("bsharp_state", stateJson);
+    localStorage.setItem(
+      "bsharp_session_history",
+      JSON.stringify({ "100": { blue: [{ identifications: 1 }] } }),
+    );
+    (window as any).__bsharp_test_deterministic_color = "red";
+  }, seedStateAtLevel("blue"));
+  await page.goto("/");
+  await page.locator("#onboarding-overlay").evaluate((el) => {
+    el.classList.remove("visible");
+  });
+
+  await expect(page).toHaveScreenshot("tablet-low-level.png");
+});

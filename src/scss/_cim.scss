@@ -84,6 +84,12 @@ div.menu-container {
     display: flex;
     flex-direction: row;
     justify-content: space-between;
+    // Reserve space for the absolutely-positioned expansion-container
+    // so it doesn't overlap the flag area on tablet screens.
+    // Only applies above 768px where the expansion-container is visible.
+    @media only screen and (min-width: 769px) {
+        min-height: 3rem;
+    }
 }
 
 div.hamburger {
@@ -149,6 +155,9 @@ div.cim {
 
 /* Flags */
 
+// Invisible spacers at the top and bottom of the flag-container.
+// On tablet with < 4 colors, they absorb extra vertical space
+// to center the flags within the container.
 div.flag-spacer {
     display: none;
     flex-grow: 1;
@@ -217,10 +226,6 @@ div.chord-notes-container {
     align-items: center;
     width: min(100%, 10em);
     height: min(10rem, 100%);
-
-    @media only screen and (min-width: 768px) {
-        height: min(10rem, calc(100% - 1em));
-    }
 }
 
 div.note-wrapper {
