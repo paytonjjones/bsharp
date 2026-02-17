@@ -53,7 +53,10 @@ test("success overlay appearance", async ({ page }) => {
   // Color is forced to "red", so clicking red is always correct
   await page.locator("#red-flag .flag").click();
 
-  await expect(overlay).toHaveAttribute("data-step", "success");
+  await expect(overlay).toHaveAttribute("data-step", "goNext");
+  await expect(overlay.locator(".onboarding-text")).toHaveText(
+    "Great job! Click the arrow to continue",
+  );
   await expect(page.locator("#flag-holder")).toHaveScreenshot(
     "success-overlay.png",
   );
@@ -68,7 +71,10 @@ test("retry overlay appearance", async ({ page }) => {
   // Color is forced to "red", so clicking yellow is always wrong
   await page.locator("#yellow-flag .flag").click();
 
-  await expect(overlay).toHaveAttribute("data-step", "retry");
+  await expect(overlay).toHaveAttribute("data-step", "goNext");
+  await expect(overlay.locator(".onboarding-text")).toHaveText(
+    "Click the arrow to try again",
+  );
   await expect(page.locator("#flag-holder")).toHaveScreenshot(
     "retry-overlay.png",
   );
