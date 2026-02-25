@@ -293,6 +293,12 @@ export function toggleTrainerVisibility(): void {
     }
 }
 
+declare global {
+    interface Window {
+        BSharpAndroid?: { setTheme(isDark: boolean): void };
+    }
+}
+
 export function applyColorScheme(scheme: string): void {
     if (scheme === 'light') {
         document.body.classList.remove('colorscheme-dark');
@@ -301,6 +307,7 @@ export function applyColorScheme(scheme: string): void {
         document.body.classList.remove('colorscheme-light');
         document.body.classList.add('colorscheme-dark');
     }
+    window.BSharpAndroid?.setTheme(scheme !== 'light');
 }
 
 // --- Profile UI ---

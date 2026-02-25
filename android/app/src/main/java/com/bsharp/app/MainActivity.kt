@@ -1,12 +1,15 @@
 package com.bsharp.app
 
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.view.WindowInsetsControllerCompat
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -23,6 +26,8 @@ class MainActivity : AppCompatActivity() {
         webView.settings.allowUniversalAccessFromFileURLs = true
         webView.settings.javaScriptCanOpenWindowsAutomatically = true
 
+        webView.addJavascriptInterface(BSharpInterface(), "BSharpAndroid")
+
         webView.webViewClient = object : WebViewClient() {
             override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
                 val url = request?.url ?: return false
@@ -34,5 +39,19 @@ class MainActivity : AppCompatActivity() {
         webView.loadUrl("file:///android_asset/index.html")
 
         setContentView(webView)
+    }
+
+    private inner class BSharpInterface {
+        @JavascriptInterface
+        fun setTheme(isDark: Boolean) {
+            runOnUiThread {
+                val color = if (isDark) Color.parseColor("#212121") else Color.parseColor("#fafafa")
+                window.statusBarColor = color
+                window.navigationBarColor = color
+                val controller = WindowInsetsControllerCompat(window, window.decorView)
+                controller.isAppearanceLightStatusBars = !isDark
+                controller.isAppearanceLightNavigationBars = !isDark
+            }
+        }
     }
 }
