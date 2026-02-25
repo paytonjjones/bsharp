@@ -1,6 +1,9 @@
 package com.bsharp.app
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
@@ -20,7 +23,14 @@ class MainActivity : AppCompatActivity() {
         webView.settings.allowUniversalAccessFromFileURLs = true
         webView.settings.javaScriptCanOpenWindowsAutomatically = true
 
-        webView.webViewClient = WebViewClient()
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(view: WebView?, request: WebResourceRequest?): Boolean {
+                val url = request?.url ?: return false
+                if (url.scheme == "file") return false
+                startActivity(Intent(Intent.ACTION_VIEW, url))
+                return true
+            }
+        }
         webView.loadUrl("file:///android_asset/index.html")
 
         setContentView(webView)
