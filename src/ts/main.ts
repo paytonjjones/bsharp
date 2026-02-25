@@ -14,6 +14,7 @@ import {
     openProfileAdder, closeProfileAdder, addProfile, submitProfileChanges,
     deleteProfile, enableDownload, triggerEasterEgg, downloadState,
     setCurrentProfile, resetCatEmoji, registerGameCallbacks,
+    showScreenPinningInfo, closeScreenPinningModal,
 } from './ui';
 import { cleanSessionHistory } from './session_cleanup';
 
@@ -42,6 +43,8 @@ w.enable_download = enableDownload;
 w.trigger_easter_egg = triggerEasterEgg;
 w.download_state = downloadState;
 w.play_chord = playChord;
+w.show_screen_pinning_info = showScreenPinningInfo;
+w.close_screen_pinning_modal = closeScreenPinningModal;
 w.__bsharp_correct_color = () => _CORRECT_COLOR;
 
 // Stop any playing audio when the user clicks an interactive element.

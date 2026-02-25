@@ -798,6 +798,14 @@ export function triggerEasterEgg(): void {
     }
 }
 
+export function showScreenPinningInfo(): void {
+    document.getElementById('screen-pinning-modal')!.classList.add('visible');
+}
+
+export function closeScreenPinningModal(): void {
+    document.getElementById('screen-pinning-modal')!.classList.remove('visible');
+}
+
 export function downloadState(): void {
     const stateJson = JSON.stringify({
         state: STATE,
