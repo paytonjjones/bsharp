@@ -90,6 +90,15 @@ Tests exist to protect behavior, not to increase coverage or test count. Follow 
 - Use brief commit messages (one line, no body). Do not add Co-Authored-By trailers
 - After any code change, run `make android-deploy` to sync dist/ into the Android assets
 
+## Releases
+
+When bumping the version for a release:
+1. Tag the commit: `git tag v<version>` (e.g. `git tag v1.2`)
+2. Build the AAB: `make android-release`
+3. Generate release notes from commits since the last tag: `git log --oneline <prev-tag>..HEAD`
+4. Keep release notes short (max 500 chars / ~5 lines) for Play Store's "What's new" field
+5. Release notes go in CHANGELOG.md — append a new section at the top with the version, date, and notes
+
 ## TODO
 
 - Pending items are tracked in TODO.md. Read these at the beginning of a session. Update the TODO.md (delete any finished items, add any new pending items) before commits if relevant. 
