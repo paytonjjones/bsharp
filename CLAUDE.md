@@ -87,6 +87,7 @@ Tests exist to protect behavior, not to increase coverage or test count. Follow 
 
 - Use brief commit messages (one line, no body). Do not add Co-Authored-By trailers
 - After any code change, run `make build` to verify the static build succeeds
+- TypeScript is compiled with maximal strictness (`strict`, `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noUnusedLocals/Parameters`, `noImplicitReturns`, etc.; see `tsconfig.json`). Keep the code free of `any` and unchecked index access — run `make check` (tsc) before committing. ES module output is always in JS strict mode.
 
 ## Releases
 

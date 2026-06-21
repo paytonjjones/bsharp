@@ -171,7 +171,7 @@ export function computeAllNotes(): NoteInfo[] {
     const noteMap: { sortKey: string; info: NoteInfo }[] = [];
 
     for (const note of uniqueNotes) {
-        const letter = note[0];
+        const letter = note[0]!;
         const remaining = note.slice(1);
         const number = remaining.replace(/#/g, '').replace(/b/g, '');
         let accidental = '';

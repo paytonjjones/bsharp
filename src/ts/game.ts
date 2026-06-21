@@ -1,14 +1,13 @@
 import { CHORDS_TONE, FIRST_BLACK_INDEX } from './data';
-import { AudioFileInfo } from './types';
-import { randomElem, randomDuration, getCurrentTimestamp } from './utils';
+import { randomElem } from './utils';
 import {
     STATE, getCurrentProfile, getCurrentTargetNumber,
     getCurrentSessionHistory, saveState, saveSessionHistory,
     newStats, isRecent
 } from './state';
-import { getCurrentCoefficients, updateStartTimeIfNeeded, updateStats, normalizeStatsObject } from './stats';
+import { getCurrentCoefficients, updateStartTimeIfNeeded, updateStats } from './stats';
 import { getAudioFiles, audioFileElem, playChordFiles, preloadAudio } from './audio';
-import { populateFlags, updateStatsDisplay, resetCatEmoji, setCatEmoji, setChordDisplayMode, populateProfileUiElements } from './ui';
+import { populateFlags, updateStatsDisplay, resetCatEmoji, setCatEmoji } from './ui';
 import { dismissOnboardingStep, showOnboardingGuessPrompt, showOnboardingGoNextPrompt, showOnboardingPlayPrompt } from './onboarding';
 
 let _COLORS: string[] | null = null;
@@ -23,7 +22,7 @@ let _CURRENT_COEFFICIENTS: number[] | null = null;
 let _TRAINER_PRELOADED = false;
 let _PERSIST_REACTION_FACE_ENABLED = false;
 export function getTestDeterministicColor(): string | null {
-    return (window as unknown as Record<string, unknown>).__bsharp_test_deterministic_color as string | null ?? null;
+    return window.__bsharp_test_deterministic_color ?? null;
 }
 
 export function getSelectedColors(): string[] {
@@ -199,7 +198,7 @@ export function resetStats(done = true): void {
 function retrieveSavedStats(): void {
     const currentHistory = getCurrentSessionHistory();
     if (currentHistory !== undefined && currentHistory.length > 0) {
-        const lastSession = currentHistory[currentHistory.length - 1];
+        const lastSession = currentHistory[currentHistory.length - 1]!;
         if (!lastSession.done) {
             getCurrentProfile().stats = currentHistory.pop()!;
             if (!isRecent(lastSession.updated_time)) {

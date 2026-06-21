@@ -11,7 +11,7 @@ const LEGACY_USER_ID = 0;
 export const GUEST_USER_ID = 100;
 export const SESSION_TIMEOUT_TIME_SECONDS = 60 * 30;
 
-const DEFAULT_CHORD = Object.keys(CHORDS_TONE)[1];
+const DEFAULT_CHORD = Object.keys(CHORDS_TONE)[1]!;
 export const DEFAULT_INSTRUMENT = 'piano_1';
 export const DEFAULT_TARGET_NUMBER = 25;
 export const DEFAULT_SHOW_CHORD_MODE = 'black_only';
@@ -119,14 +119,11 @@ export function initializeProfileDefaults(profile: Profile): void {
 }
 
 export function loadState(): void {
-    let state = getObject<AppState>(STATE_KEY);
+    // Try BSharp keys, then fall back to legacy CIM keys.
+    const loaded = getObject<AppState>(STATE_KEY) ?? getObject<AppState>(LEGACY_STATE_KEY);
 
-    // Migration: try old CIM keys if BSharp keys are missing
-    if (state === null) {
-        state = getObject<AppState>(LEGACY_STATE_KEY);
-    }
-
-    if (state === null) {
+    let state: AppState;
+    if (loaded === null) {
         const newProfiles: Record<number, Profile> = {};
         newProfiles[GUEST_USER_ID] = newProfile('Guest', 'fa-user', GUEST_USER_ID);
         state = {
@@ -134,20 +131,22 @@ export function loadState(): void {
             current_chord: DEFAULT_CHORD,
             current_profile: GUEST_USER_ID,
         };
-    } else if ((state as unknown as Record<string, unknown>)['profiles'] === undefined) {
+    } else if ((loaded as unknown as Record<string, unknown>)['profiles'] === undefined) {
         // Convert old-style state into profile-based state
         const newProfiles: Record<number, Profile> = {};
         newProfiles[LEGACY_USER_ID] = newProfile('Legacy User', 'fa-user', LEGACY_USER_ID);
         newProfiles[GUEST_USER_ID] = newProfile('Guest', 'fa-user', GUEST_USER_ID);
         const updatedState: AppState = {
             profiles: newProfiles,
-            current_chord: state.current_chord,
+            current_chord: loaded.current_chord,
             current_profile: GUEST_USER_ID,
         };
-        if ((state as unknown as Record<string, unknown>)['stats']) {
-            updatedState.profiles[LEGACY_USER_ID].stats = (state as unknown as Record<string, unknown>)['stats'] as SessionStats;
+        if ((loaded as unknown as Record<string, unknown>)['stats']) {
+            updatedState.profiles[LEGACY_USER_ID]!.stats = (loaded as unknown as Record<string, unknown>)['stats'] as SessionStats;
         }
         state = updatedState;
+    } else {
+        state = loaded;
     }
 
     if (state.current_profile === undefined || state.current_profile === null) {
@@ -171,7 +170,7 @@ export function getCurrentProfile(): Profile {
         currentProfileId = GUEST_USER_ID;
         STATE.current_profile = currentProfileId;
     }
-    return STATE.profiles[currentProfileId];
+    return STATE.profiles[currentProfileId]!;
 }
 
 export function getCurrentTargetNumber(): number {

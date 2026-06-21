@@ -11,7 +11,7 @@ export function cleanSessionHistory(): void {
         }
 
         for (const chord of Object.keys(profileHistory)) {
-            profileHistory[chord] = profileHistory[chord]
+            profileHistory[chord] = profileHistory[chord]!
                 .filter((o: SessionStats) =>
                     o.identifications || (!o.done && isRecent(o.updated_time))
                 )

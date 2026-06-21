@@ -24,17 +24,20 @@ export function cumulativeSum(arr: number[]): number[] {
 }
 
 export function randomElem<T>(arr: T[], weights?: number[]): T {
+    if (arr.length === 0) {
+        throw new Error('randomElem requires a non-empty array');
+    }
     if (weights === undefined) {
-        return arr[Math.floor(Math.random() * arr.length)];
+        return arr[Math.floor(Math.random() * arr.length)]!;
     } else {
         const cumWeights = cumulativeSum(weights);
         const number = Math.random();
         for (const [index, value] of arr.entries()) {
-            if (number <= cumWeights[index]) {
+            if (number <= cumWeights[index]!) {
                 return value;
             }
         }
-        return arr[arr.length - 1];
+        return arr[arr.length - 1]!;
     }
 }
 

@@ -10,10 +10,10 @@ export function getAudioFiles(): Map<string, AudioFileInfo[]> {
         AUDIO_FILES = new Map();
 
         for (const file of AUDIO_FILE_LIST) {
-            const [base] = file.split('.');
+            const base = file.split('.')[0]!;
             const parts = base.split('_');
-            const chord = parts[0];
-            const color = parts[1];
+            const chord = parts[0]!;
+            const color = parts[1]!;
             const ext = file.split('.').pop()!;
 
             const audioFile: AudioFileInfo = {
@@ -81,9 +81,9 @@ export function getNoteAudioFiles(): Map<string, NoteAudioFileInfo[]> {
         NOTE_AUDIO_FILES = new Map();
 
         for (const file of NOTE_AUDIO_FILE_LIST) {
-            const [base] = file.split('.');
+            const base = file.split('.')[0]!;
             const parts = base.split('_');
-            const notePrefix = parts[0];
+            const notePrefix = parts[0]!;
             const ext = file.split('.').pop()!;
 
             const noteFile: NoteAudioFileInfo = {

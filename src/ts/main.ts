@@ -11,12 +11,32 @@ import { initOnboarding } from './onboarding';
 import {
     applyColorScheme,
     populateProfileUiElements, updateStatsDisplay, setChordDisplayMode,
-    openProfileAdder, closeProfileAdder, addProfile, submitProfileChanges,
-    deleteProfile, enableDownload, triggerEasterEgg, downloadState,
+    addProfile, submitProfileChanges, deleteProfile,
+    triggerEasterEgg, downloadState,
     registerGameCallbacks, onPanelOpen,
 } from './ui';
 import { cleanSessionHistory } from './session_cleanup';
-import { PanelName } from './ui_store';
+import { PanelName, UiStore } from './ui_store';
+
+// Game/profile actions exposed on `window` for the inline onclick handlers in
+// index.html, plus the test hooks read by the Playwright/jsdom suites.
+declare global {
+    interface Window {
+        play_audio: () => void;
+        select_flag: (el: HTMLElement) => void;
+        next_audio: () => void;
+        reset_stats: (done?: boolean) => void;
+        change_selector: (to?: string) => void;
+        add_profile: () => void;
+        submit_profile_changes: () => void;
+        delete_profile: () => void;
+        trigger_easter_egg: () => void;
+        download_state: () => void;
+        play_chord: (color: string) => void;
+        __bsharp_correct_color: () => string | null;
+        __bsharp_test_deterministic_color?: string | null;
+    }
+}
 
 // Register callbacks to break circular dependency between ui.ts and game.ts
 registerGameCallbacks(getEmojiLock, resetStats, changeSelector, onTrainerOpen);
@@ -24,11 +44,11 @@ registerGameCallbacks(getEmojiLock, resetStats, changeSelector, onTrainerOpen);
 // Reactive UI shell state (menu / panels), bound from the HTML via $store.ui.
 Alpine.store('ui', {
     menuOpen: false,
-    panel: '' as PanelName,
-    toggleMenu(this: { menuOpen: boolean }) {
+    panel: '',
+    toggleMenu() {
         this.menuOpen = !this.menuOpen;
     },
-    open(this: { panel: PanelName }, name: Exclude<PanelName, ''>) {
+    open(name: Exclude<PanelName, ''>) {
         if (this.panel === name) {
             this.panel = '';
             return;
@@ -36,31 +56,26 @@ Alpine.store('ui', {
         this.panel = name;
         onPanelOpen(name);
     },
-    home(this: { panel: PanelName }) {
+    home() {
         this.panel = '';
     },
-    close(this: { panel: PanelName }) {
+    close() {
         this.panel = '';
     },
-});
+} satisfies UiStore);
 
-// Expose game/profile actions for the inline onclick handlers in index.html.
-const w = window as unknown as Record<string, unknown>;
-w.play_audio = playAudio;
-w.select_flag = selectFlag;
-w.next_audio = nextAudio;
-w.reset_stats = resetStats;
-w.change_selector = changeSelector;
-w.open_profile_adder = openProfileAdder;
-w.close_profile_adder = closeProfileAdder;
-w.add_profile = addProfile;
-w.submit_profile_changes = submitProfileChanges;
-w.delete_profile = deleteProfile;
-w.enable_download = enableDownload;
-w.trigger_easter_egg = triggerEasterEgg;
-w.download_state = downloadState;
-w.play_chord = playChord;
-w.__bsharp_correct_color = () => _CORRECT_COLOR;
+window.play_audio = playAudio;
+window.select_flag = selectFlag;
+window.next_audio = nextAudio;
+window.reset_stats = resetStats;
+window.change_selector = changeSelector;
+window.add_profile = addProfile;
+window.submit_profile_changes = submitProfileChanges;
+window.delete_profile = deleteProfile;
+window.trigger_easter_egg = triggerEasterEgg;
+window.download_state = downloadState;
+window.play_chord = playChord;
+window.__bsharp_correct_color = () => _CORRECT_COLOR;
 
 // Stop any playing audio when the user clicks an interactive element.
 document.addEventListener('click', (e) => {

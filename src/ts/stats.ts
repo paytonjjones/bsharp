@@ -1,4 +1,4 @@
-import { SessionStats, Tally } from './types';
+import { SessionStats } from './types';
 import { CHORDS_TONE } from './data';
 import { getCurrentTimestamp, sum } from './utils';
 import {
@@ -26,15 +26,8 @@ export function updateStats(correctColor: string, chosenColor: string): void {
         stats.correct++;
     }
 
-    if (stats.confusion_matrix[correctColor] === undefined) {
-        stats.confusion_matrix[correctColor] = {};
-    }
-
-    const row = stats.confusion_matrix[correctColor];
-    if (row[chosenColor] === undefined) {
-        row[chosenColor] = 0;
-    }
-    row[chosenColor] = row[chosenColor] + 1;
+    const row = (stats.confusion_matrix[correctColor] ??= {});
+    row[chosenColor] = (row[chosenColor] ?? 0) + 1;
 
     stats.updated_time = getCurrentTimestamp();
     saveState();
@@ -51,21 +44,10 @@ export function updateNoteStats(color: string, correctNote: string, chosenNote: 
         stats.notes.correct++;
     }
 
-    let cm = stats.notes.confusion_matrix;
-    if (cm[color] === undefined) {
-        cm[color] = {};
-    }
-
-    let colorMatrix = cm[color] as unknown as Record<string, Record<string, number>>;
-    if (colorMatrix[correctNote] === undefined) {
-        (colorMatrix as Record<string, unknown>)[correctNote] = {};
-    }
-
-    let row = colorMatrix[correctNote];
-    if (row[chosenNote] === undefined) {
-        row[chosenNote] = 0;
-    }
-    row[chosenNote] = row[chosenNote] + 1;
+    const cm = stats.notes.confusion_matrix;
+    const colorMatrix = (cm[color] ??= {}) as unknown as Record<string, Record<string, number>>;
+    const row = (colorMatrix[correctNote] ??= {});
+    row[chosenNote] = (row[chosenNote] ?? 0) + 1;
 
     stats.updated_time = getCurrentTimestamp();
     saveState();
@@ -92,7 +74,7 @@ export function getCatEmoji(level: number): string {
         5: '\u{1F640}',
         6: '\u{1F63B}',
     };
-    return emojiLevels[level];
+    return emojiLevels[level] ?? emojiLevels[2]!;
 }
 
 const RECENT_IDENTIFICATIONS_LIMIT = 140;
@@ -130,7 +112,7 @@ export function getCurrentCoefficients(): number[] {
     let remaining = RECENT_IDENTIFICATIONS_LIMIT;
 
     for (let i = sessionHistory.length - 1; i >= 0 && remaining > 0; i--) {
-        const session = sessionHistory[i];
+        const session = sessionHistory[i]!;
         const sessionCount = countMatrixIdentifications(session.confusion_matrix);
         if (sessionCount === 0) continue;
 
@@ -160,9 +142,12 @@ export function mergeMatrices(
 
     for (const cm of confusionMatrices) {
         for (const ok of Object.keys(cm)) {
-            for (const ik of Object.keys(cm[ok])) {
-                if (outMatrix[ok] && outMatrix[ok][ik] !== undefined) {
-                    outMatrix[ok][ik] = outMatrix[ok][ik] + cm[ok][ik];
+            const cmRow = cm[ok]!;
+            const outRow = outMatrix[ok];
+            if (!outRow) continue;
+            for (const ik of Object.keys(cmRow)) {
+                if (outRow[ik] !== undefined) {
+                    outRow[ik] = outRow[ik]! + cmRow[ik]!;
                 }
             }
         }
@@ -185,33 +170,33 @@ export function calculateCoefficients(
     const chords = Object.keys(matrix);
     const numChords = chords.length;
     const defaultValue = 1 / numChords;
-    let coefficients = new Array(numChords).fill(0);
-    const numChances = new Array(numChords).fill(0);
-    const minValues = new Array(numChords).fill(1 / (1.2 * numChords));
+    let coefficients: number[] = new Array<number>(numChords).fill(0);
+    const numChances: number[] = new Array<number>(numChords).fill(0);
+    const minValues: number[] = new Array<number>(numChords).fill(1 / (1.2 * numChords));
 
     for (const [correctIndex, correctChord] of chords.entries()) {
         for (const [chosenIndex, chosenChord] of chords.entries()) {
-            const value = matrix[correctChord][chosenChord];
+            const value = matrix[correctChord]![chosenChord];
             if (value === undefined) continue;
             if (chosenIndex !== correctIndex) {
-                coefficients[correctIndex] += value * wrongWeight;
-                coefficients[chosenIndex] += value * mistakenForWeight;
+                coefficients[correctIndex] = coefficients[correctIndex]! + value * wrongWeight;
+                coefficients[chosenIndex] = coefficients[chosenIndex]! + value * mistakenForWeight;
             } else {
-                coefficients[correctIndex] += value;
+                coefficients[correctIndex] = coefficients[correctIndex]! + value;
             }
-            numChances[correctIndex] += value;
+            numChances[correctIndex] = numChances[correctIndex]! + value;
         }
     }
 
-    let mask = numChances.map((x: number) => x < threshold);
-    coefficients = coefficients.map((value: number, i: number) => mask[i] ? defaultValue : value);
+    const mask = numChances.map((x) => x < threshold);
+    coefficients = coefficients.map((value, i) => mask[i] ? defaultValue : value);
 
     let normalized = false;
     while (!normalized) {
         coefficients = normalizeArrayMasked(coefficients, mask);
         normalized = true;
         for (const [index, value] of coefficients.entries()) {
-            const minCoefficient = minValues[index];
+            const minCoefficient = minValues[index]!;
             if (value < minCoefficient) {
                 mask[index] = true;
                 coefficients[index] = minCoefficient;

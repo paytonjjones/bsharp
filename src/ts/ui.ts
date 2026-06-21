@@ -240,7 +240,7 @@ function populateProfileSwitcher(): void {
 
     // Add non-guest profiles first, then guest
     const profiles = Object.values(STATE.profiles).filter(p => p.id !== GUEST_USER_ID);
-    profiles.push(STATE.profiles[GUEST_USER_ID]);
+    profiles.push(STATE.profiles[GUEST_USER_ID]!);
 
     for (const profile of profiles) {
         const btn = document.createElement('button');
@@ -502,6 +502,7 @@ export function addProfile(): void {
 export function submitProfileChanges(): void {
     const profileValues = getProfileSettings();
     const currentProfile = STATE.profiles[profileValues.id!];
+    if (!currentProfile) return;
 
     if (currentProfile.name !== profileValues.name && isProfileNameTaken(profileValues.name)) {
         alert('The name ' + profileValues.name + ' is taken, please choose another one.');
@@ -547,9 +548,12 @@ export function deleteProfile(): void {
         return;
     }
 
-    if (confirm('Are you sure you want to delete the profile ' + STATE.profiles[profileId].name + '?')) {
+    const profile = STATE.profiles[profileId];
+    if (!profile) return;
+
+    if (confirm('Are you sure you want to delete the profile ' + profile.name + '?')) {
         STATE.current_profile = GUEST_USER_ID;
-        setCurrentProfile(STATE.profiles[GUEST_USER_ID]);
+        setCurrentProfile(STATE.profiles[GUEST_USER_ID]!);
         delete STATE.profiles[profileId];
     }
 
@@ -564,7 +568,7 @@ export function setCurrentProfile(profile: Profile): void {
     }
 
     if (profile.current_chord === undefined) {
-        profile.current_chord = Object.keys(CHORDS_TONE)[1];
+        profile.current_chord = Object.keys(CHORDS_TONE)[1]!;
     }
 
     normalizeStatsObject(profile.stats);
