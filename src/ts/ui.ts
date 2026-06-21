@@ -13,6 +13,7 @@ import {
 } from './stats';
 import { formatDatetime, getCurrentTimestamp, validInt } from './utils';
 import { resetOnboarding } from './onboarding';
+import { getUiStore } from './ui_store';
 
 let _DOWNLOAD_ENABLED_CLICKS = 0;
 let _DOWNLOAD_ENABLED_LAST_CLICK: number | null = null;
@@ -185,117 +186,18 @@ export function setChordDisplayMode(chordMode: string): void {
     }
 }
 
-// --- Panel Toggle System ---
+// --- Panel content population (visibility handled by the Alpine ui store) ---
 
-let _CURRENT_PANEL: HTMLElement | null = null;
-
-const PANEL_TRIGGER_MAP: Record<string, string> = {
-    'i-infobox': 'i-infobox-trigger',
-    'trainer-infobox': 'trainer-infobox-trigger',
-    'stats-history-container': 'stats-history-trigger',
-    'profile-info-container': 'profile-infobox-trigger',
-};
-
-function setActiveTrigger(panelElem: HTMLElement | null): void {
-    // Clear all active states
-    const homeButton = document.getElementById('home-button');
-    if (homeButton) homeButton.classList.remove('active');
-    for (const triggerId of Object.values(PANEL_TRIGGER_MAP)) {
-        const triggerElem = document.getElementById(triggerId);
-        if (triggerElem) triggerElem.parentElement?.classList.remove('active');
-    }
-
-    if (panelElem === null) {
-        // Home is active
-        if (homeButton) homeButton.classList.add('active');
-    } else {
-        const triggerId = PANEL_TRIGGER_MAP[panelElem.id];
-        if (triggerId) {
-            const triggerElem = document.getElementById(triggerId);
-            if (triggerElem) triggerElem.parentElement?.classList.add('active');
-        }
-    }
-}
-
-function setPanelOpen(open: boolean): void {
-    const container = document.querySelector('.cim-container');
-    if (!container) return;
-    if (open) {
-        container.classList.add('panel-open');
-    } else {
-        container.classList.remove('panel-open');
-    }
-}
-
-function togglePanel(panelElem: HTMLElement): void {
-    if (_CURRENT_PANEL === panelElem) {
-        // Close current panel
-        panelElem.classList.remove('visible');
-        _CURRENT_PANEL = null;
-        setPanelOpen(false);
-        setActiveTrigger(null);
-    } else {
-        // Close any open panel first
-        if (_CURRENT_PANEL !== null) {
-            _CURRENT_PANEL.classList.remove('visible');
-        }
-        panelElem.classList.add('visible');
-        _CURRENT_PANEL = panelElem;
-        setPanelOpen(true);
-        setActiveTrigger(panelElem);
-    }
-}
-
-export function closePanel(): void {
-    if (_CURRENT_PANEL !== null) {
-        _CURRENT_PANEL.classList.remove('visible');
-        _CURRENT_PANEL = null;
-        setPanelOpen(false);
-    }
-    setActiveTrigger(null);
-}
-
-export function initActiveState(): void {
-    setActiveTrigger(null);
-}
-
-export function toggleExpansionBar(): void {
-    const menu = document.getElementById('menu-container');
-    if (menu) menu.classList.toggle('visible');
-}
-
-export function toggleInfoboxVisibility(): void {
-    togglePanel(document.getElementById('i-infobox')!);
-}
-
-export function toggleStatsHistoryVisibility(): void {
-    populateStatsHistoryModal();
-    togglePanel(document.getElementById('stats-history-container')!);
-}
-
-export function toggleProfilePanel(): void {
-    const panel = document.getElementById('profile-info-container')!;
-    if (panel.classList.contains('visible') && _CURRENT_PANEL === panel) {
-        closePanel();
-    } else {
+// Called by the Alpine ui store when a panel is opened, so panel content is
+// freshly rendered each time it becomes visible.
+export function onPanelOpen(name: string): void {
+    if (name === 'stats') {
+        populateStatsHistoryModal();
+    } else if (name === 'profile') {
         populateProfileSwitcher();
         populateProfileSettings();
-        togglePanel(panel);
-    }
-}
-
-export function toggleTrainerVisibility(): void {
-    const panel = document.getElementById('trainer-infobox')!;
-    togglePanel(panel);
-    // Preload audio when opening trainer
-    if (_CURRENT_PANEL === panel) {
+    } else if (name === 'trainer') {
         _onTrainerOpenFn();
-    }
-}
-
-declare global {
-    interface Window {
-        BSharpAndroid?: { setTheme(isDark: boolean): void };
     }
 }
 
@@ -307,7 +209,6 @@ export function applyColorScheme(scheme: string): void {
         document.body.classList.remove('colorscheme-light');
         document.body.classList.add('colorscheme-dark');
     }
-    window.BSharpAndroid?.setTheme(scheme !== 'light');
 }
 
 // --- Profile UI ---
@@ -522,17 +423,8 @@ function populateProfileSettings(): void {
 }
 
 export function openProfileAdder(): void {
-    // Open the profile settings panel in add mode
-    const panel = document.getElementById('profile-info-container')!;
-    if (_CURRENT_PANEL !== panel) {
-        if (_CURRENT_PANEL !== null) {
-            _CURRENT_PANEL.classList.remove('visible');
-        }
-        panel.classList.add('visible');
-        _CURRENT_PANEL = panel;
-        setPanelOpen(true);
-        setActiveTrigger(panel);
-    }
+    // The profile panel is already open; switch the dialog into "add" mode.
+    getUiStore().panel = 'profile';
     clearProfileDialog();
     // Highlight "+" as active in switcher
     const switcher = document.getElementById('profile-switcher');
@@ -569,7 +461,7 @@ export function openProfileAdder(): void {
 }
 
 export function closeProfileAdder(): void {
-    closePanel();
+    getUiStore().close();
     clearProfileDialog();
 }
 
@@ -796,14 +688,6 @@ export function triggerEasterEgg(): void {
             }
         }
     }
-}
-
-export function showScreenPinningInfo(): void {
-    document.getElementById('screen-pinning-modal')!.classList.add('visible');
-}
-
-export function closeScreenPinningModal(): void {
-    document.getElementById('screen-pinning-modal')!.classList.remove('visible');
 }
 
 export function downloadState(): void {

@@ -14,8 +14,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
  * -------------------------- */
 @font-face {
   font-family: 'ForkAwesome';
-  src: url('static/fonts/forkawesome-webfont.eot?v=1.2.0');
-  src: url('static/fonts/forkawesome-webfont.eot?#iefix&v=1.2.0') format('embedded-opentype'), url('static/fonts/forkawesome-webfont.woff2?v=1.2.0') format('woff2'), url('static/fonts/forkawesome-webfont.woff?v=1.2.0') format('woff'), url('static/fonts/forkawesome-webfont.ttf?v=1.2.0') format('truetype'), url('static/fonts/forkawesome-webfont.svg?v=1.2.0#forkawesomeregular') format('svg');
+  src: url('./forkawesome-webfont.woff2') format('woff2');
   font-weight: normal;
   font-style: normal;
   font-display: block;

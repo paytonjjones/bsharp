@@ -1,110 +1,68 @@
 <!doctype html>
-<html>
+<html lang="en">
     <head>
         <title>BSharp: Perfect Pitch Trainer</title>
         <meta charset="utf-8">
-        <meta http-equiv="X-UA-Compatible" content="IE=edge">
         <meta name="viewport"
               content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0">
-        <meta http-equiv="Content-Language" content="en">
         <meta name="color-scheme" content="light dark">
         <meta name="description" content="Perfect pitch trainer using Eguchi's Chord Identification Method. Practice identifying chords by color for children aged 2-6.">
-        <link rel="preload" href="static/fonts/forkawesome-webfont.woff2?v=1.2.0"
-                            as="font" type="font/woff2" crossorigin="">
-        <link rel="stylesheet" href="style.css">
-        <style>
-            /* Android-specific overrides (always applied) */
-            html, body {
-                margin: 0 !important;
-                padding: 0 !important;
-            }
-
-            div.cim-container {
-                padding: 40px 10px 10px 10px !important;
-                box-sizing: border-box !important;
-            }
-
-            div.hamburger {
-                margin-top: 60px !important;
-            }
-
-            div.menu-container.visible div.hamburger {
-                margin-top: 10px !important;
-            }
-
-            div.profile-info-container .entry-row {
-                margin-bottom: 15px;
-                display: flex;
-                align-items: center;
-                flex-wrap: wrap;
-                gap: 0.5rem;
-            }
-
-            div.profile-info-container .button-container {
-                padding-bottom: 20px;
-                margin-bottom: 20px;
-            }
-        </style>
     </head>
 
-    <body class="colorscheme-dark">
-    <div class="cim-container">
-        <div class="menu-container" id="menu-container">
+    <body x-data class="colorscheme-dark">
+    <div class="cim-container" :class="{ 'panel-open': $store.ui.panel }">
+        <div class="menu-container" id="menu-container"
+             :class="{ visible: $store.ui.menuOpen }">
             <div class="menu-spacer"></div>
             <div class="expansion-container">
-                <div class="infobox-container" id="home-button">
-                    <a href="#"
-                       class="infobox-trigger"
-                       onclick="close_panel()">
+                <div class="infobox-container" id="home-button"
+                     :class="{ active: !$store.ui.panel }">
+                    <a href="#" class="infobox-trigger"
+                       @click.prevent="$store.ui.home()">
                     <i class="fa fa-solid fa-home"></i>
                   </a>
                 </div>
-                <div class="infobox-container">
-                    <a href="#"
-                       id="trainer-infobox-trigger"
-                       class="infobox-trigger"
-                       onclick="toggle_trainer_visibility()">
+                <div class="infobox-container"
+                     :class="{ active: $store.ui.panel === 'trainer' }">
+                    <a href="#" id="trainer-infobox-trigger" class="infobox-trigger"
+                       @click.prevent="$store.ui.open('trainer')">
                     <i class="fa fa-solid fa-music"></i>
                   </a>
                 </div>
-                <div class="infobox-container">
-                    <a href="#" class="infobox-trigger"
-                       id="i-infobox-trigger"
-                       onclick="toggle_infobox_visibility()">
+                <div class="infobox-container"
+                     :class="{ active: $store.ui.panel === 'info' }">
+                    <a href="#" id="i-infobox-trigger" class="infobox-trigger"
+                       @click.prevent="$store.ui.open('info')">
                     <i class="fa fa-solid fa-info-circle"></i>
                   </a>
                 </div>
-                <div class="infobox-container">
-                    <a href="#"
-                       id="stats-history-trigger"
-                       class="infobox-trigger"
-                       onclick="toggle_stats_history_visibility()">
+                <div class="infobox-container"
+                     :class="{ active: $store.ui.panel === 'stats' }">
+                    <a href="#" id="stats-history-trigger" class="infobox-trigger"
+                       @click.prevent="$store.ui.open('stats')">
                     <i class="fa fa-solid fa-line-chart"></i>
                   </a>
                 </div>
                 <!-- Profiles -->
-                <div class="infobox-container">
-                    <a href="#"
-                       id="profile-infobox-trigger"
-                       class="infobox-trigger"
-                       onclick="toggle_profile_panel()">
+                <div class="infobox-container"
+                     :class="{ active: $store.ui.panel === 'profile' }">
+                    <a href="#" id="profile-infobox-trigger" class="infobox-trigger"
+                       @click.prevent="$store.ui.open('profile')">
                     <i class="fa fa-solid" id="profile-icon"></i>
                     <span id="profile-text"></span>
                   </a>
                 </div>
             </div>
             <div class="hamburger">
-                <a href="#"
-                   id="hamburger-link"
-                   onclick="toggle_expansion_bar()"
-                   >
+                <a href="#" id="hamburger-link" @click.prevent="$store.ui.toggleMenu()">
                     <i class="fa fa-bars"></i>
                 </a>
             </div>
         </div>
         <div id="panel-area">
             <!-- Infobox -->
-            <div class="infobox panel" id="i-infobox">
+            <div class="infobox panel" id="i-infobox"
+                 :class="{ visible: $store.ui.panel === 'info' }">
                 <p>This is an implementation of <a href="https://www.ganbar.us/documents/sakakibara_2012_chord_identification.pdf">Eguchi's Chord Identification method</a>. See also <a href="https://ichionkai.co.jp/english3.html">Ichionkai Music School</a>.</p>
                 <p><a href="https://youtu.be/kNfkm6PQC20">Here is a short video explaining how we use it</a>.</p>
                 <p>This is a method for teaching absolute pitch to children aged 2-6. Children should practice ~5x per day for 2-3 minutes (about 20-25 identifications). Chords are always identified with colors, and progress in the sequence <span onclick="trigger_easter_egg()">red</span> (CEG), yellow (CFA), blue (HDG), black (ACF), green (DGH), orange (EGC), purple (FAC), pink (GHD), brown (GCE).</p>
@@ -112,7 +70,8 @@
             </div>
 
             <!-- Music player / Trainer -->
-            <div class="infobox panel" id="trainer-infobox">
+            <div class="infobox panel" id="trainer-infobox"
+                 :class="{ visible: $store.ui.panel === 'trainer' }">
               <div class="trainer-container">
                 <div class="flag-wrapper trainer visible"><div class="flag trainer red" onclick="play_chord('red');"></div></div>
                 <div class="flag-wrapper trainer visible"><div class="flag trainer yellow" onclick="play_chord('yellow');"></div></div>
@@ -132,13 +91,15 @@
             </div>
 
             <!-- Statistics History -->
-            <div class="infobox panel stats-history-container" id="stats-history-container"></div>
+            <div class="infobox panel stats-history-container" id="stats-history-container"
+                 :class="{ visible: $store.ui.panel === 'stats' }"></div>
 
             <!-- "Add profile" / "Profile settings" dialog -->
-            <div class="profile-info-container panel" id="profile-info-container">
+            <div class="profile-info-container panel" id="profile-info-container"
+                 :class="{ visible: $store.ui.panel === 'profile' }">
                 <div id="profile-switcher"></div>
                 <div class="entry-row">
-                    <label for="profile_name">Profile Name:</label>
+                    <label for="profile_name_setting">Profile Name:</label>
                     <input type="text" id="profile_name_setting" class="entry">
                 </div>
                 <div class="entry-row">
@@ -163,7 +124,7 @@
                     <label for="npis-taxi"><i class="fa fa-solid fa-taxi"></i></label>
                 </div>
                 <div class="entry-row">
-                    <label for="show_chord_name_mode">Show chord names:</label>
+                    <label for="show-chord-name-mode-selector">Show chord names:</label>
                     <select class="selector" name="show_chord_name_mode" id="show-chord-name-mode-selector">
                         <option value="always">Always</option>
                         <option value="black_only">Black chords only</option>
@@ -171,14 +132,14 @@
                     </select>
                 </div>
                 <div class="entry-row">
-                    <label for="chord_reveal_mode">Reveal mode:</label>
+                    <label for="chord-reveal-mode-selector">Reveal mode:</label>
                     <select class="selector" name="chord_reveal_mode" id="chord-reveal-mode-selector">
                         <option value="always">Always on</option>
                         <option value="after_guess">Reveal after guess</option>
                     </select>
                 </div>
                 <div class="entry-row">
-                    <label for="chord_name_display_mode">Chord name display:</label>
+                    <label for="chord-name-display-mode-selector">Chord name display:</label>
                     <select class="selector" name="chord_name_display_mode" id="chord-name-display-mode-selector">
                         <option value="shapes_and_letters">Shapes and Letters</option>
                         <option value="shapes_only">Shapes only</option>
@@ -198,32 +159,26 @@
                     <input type="number" id="target_number_setting" class="entry">
                 </div>
                 <div class="entry-row">
-                    <label for="color_scheme_setting">Color scheme:</label>
+                    <label for="color-scheme-selector">Color scheme:</label>
                     <select class="selector" name="color_scheme_setting" id="color-scheme-selector">
                         <option value="dark">Dark</option>
                         <option value="light">Light</option>
                     </select>
                 </div>
                 <div class="entry-row">
-                    <label for="chord_selection_mode_setting">Chord selection:</label>
+                    <label for="chord-selection-mode-selector">Chord selection:</label>
                     <select class="selector" name="chord_selection_mode_setting" id="chord-selection-mode-selector">
                         <option value="random">Random</option>
                         <option value="adaptive">Adaptive</option>
                     </select>
                 </div>
-                <div class="entry-row">
-                    <label>Pin screen:</label>
-                    <button class="button settings-button" type="button" onclick="show_screen_pinning_info()">
-                        <i class="fa fa-thumb-tack"></i> Info
-                    </button>
-                </div>
                 <!-- Buttons are hidden by default (.profile-info-container button { display: none }).
                      Use "settings-button" for profile-edit buttons or "add-button" for profile-add buttons;
                      ui.ts adds .visible to the appropriate class when the panel opens. -->
                 <div class="button-container">
-                    <button class="button settings-button" id="delete-profile-button" onclick="delete_profile()">Delete Profile</button>
-                    <button class="button settings-button" id="submit-changes-button" onclick="submit_profile_changes()">Save Changes</button>
-                    <button class="button add-button" id="add-user-button" onclick="add_profile()">Add Profile</button>
+                    <button class="button settings-button transition hover:opacity-80" id="delete-profile-button" onclick="delete_profile()">Delete Profile</button>
+                    <button class="button settings-button transition hover:opacity-80" id="submit-changes-button" onclick="submit_profile_changes()">Save Changes</button>
+                    <button class="button add-button transition hover:opacity-80" id="add-user-button" onclick="add_profile()">Add Profile</button>
                 </div>
             </div>
         </div>
@@ -461,80 +416,58 @@
             </optgroup>
             </select>
         </div>
-<div class="mode-toggle-container">
-    <a id="download-link" class="download-button" onclick="download_state()">
-        <i class="fa fa-download fa-fw" aria-hidden="true"></i>
-    </a>
-</div>
+        <div class="mode-toggle-container">
+            <a id="download-link" class="download-button" onclick="download_state()">
+                <i class="fa fa-download fa-fw" aria-hidden="true"></i>
+            </a>
+        </div>
 
-<!-- Single Note Quiz (disabled for now) -->
-<div class="infobox" id="single-note-trainer">
-    <div id="single-note-selector-container">
-    </div>
-</div>
-<div class="shape-container">
-    <svg style="height: 0; width: 0;">
-        <defs>
-            <filter id="dilate_shape">
-                <feMorphology operator="dilate" in="SourceGraphic" radius="2"/>
-            </filter>
-            <clipPath id="triangle-clip-path" clipPathUnits="objectBoundingBox">
-                <path d="m.8192 1q.2338-0 .1293-.2028l-.3476-.6741q-.1046-.2028-.2091 0l-.3476.6741q-.1046.2028.1293.2028z"/>
-            </clipPath>
-            <clipPath id="triangle-upside-down-clip-path" clipPathUnits="objectBoundingBox">
-                <path d="m.1808 0q-.2338 0-.1293.2028l.3476.6741q.1046.2028.2091 0l.3476-.6741q.1046-.2028-.1293-.2028z"/>
-            </clipPath>
-            <clipPath id="moon-clip-path" clipPathUnits="objectBoundingBox">
-                <path d="m.5011.025a.4761.475 0 00-.4761.475.4761.475 0 00.4761.475.4761.475 0 00.4739-.4449.3187.318 0 01-.1276.027.3187.318 0 01-.3187-.318.3187.318 0 01.074-.2031.4761.475 0 00-.1016-.0111z"/>
-            </clipPath>
-            <clipPath id="moon-inverted-clip-path" clipPathUnits="objectBoundingBox">
-                <path d="m.025.4989a.4761.475 270 00.475.4761.4761.475 270 00.475-.4761.4761.475 270 00-.4449-.4739.3187.318 270 01.027.1276.3187.318 270 01-.318.3187.3187.318 270 01-.2031-.074.4761.475 270 00-.0111.1016z"/>
-            </clipPath>
-            <clipPath id="heart-clip-path" clipPathUnits="objectBoundingBox">
-                <path d="m 0.27446288,0.02497801 c -0.13778724,0 -0.24945956,0.12061671 -0.24945956,0.26932511 0,0.30247927 0.28243446,0.38179115 0.47499467,0.68067485 0.18220613,-0.2969646 0.47500535,-0.38796757 0.47500535,-0.68067485 0,-0.1487084 -0.1117578,-0.26932511 -0.24945955,-0.26932511 -0.0998009,0 -0.18570023,0.06363921 -0.2255458,0.15530394 -0.0395357,-0.09143312 -0.12536021,-0.15530394 -0.22527867,-0.15530394 z"/>
-            </clipPath>
-            <clipPath id="heart-upside-down-clip-path" clipPathUnits="objectBoundingBox">
-                <path d="m0.27446 0.97542c-0.13779 0-0.24946-0.12062-0.24946-0.26933 0-0.30248 0.28243-0.38179 0.47499-0.68067 0.18221 0.29696 0.47501 0.38797 0.47501 0.68067 0 0.14871-0.11176 0.26933-0.24946 0.26933-0.099801 0-0.1857-0.063639-0.22555-0.1553-0.039536 0.091433-0.12536 0.1553-0.22528 0.1553z"/>
-            </clipPath>
-            <clipPath id="diamond-clip-path" clipPathUnits="objectBoundingBox">
-                <path d="m0.57829 0.058879 0.36256 0.36263c0.04343 0.04344 0.04541 0.11139 0.0044 0.15236l-0.37145 0.37153c-0.04096 0.04097-0.1089 0.03899-0.15232-0.0044l-0.36256-0.36263c-0.04343-0.04344-0.04541-0.11139-0.0044-0.15236l0.37145-0.37153c0.04096-0.04097 0.1089-0.03899 0.15232 0.004399z"/>
-            </clipPath>
-            <clipPath id="square-clip-path" clipPathUnits="objectBoundingBox">
-                <path d="m0.16833 0.025 0.66323 6.9e-5c0.07945 1e-5 0.1434 0.06033 0.14336 0.13529l7.1e-5 0.67938c9e-6 0.07492-0.06394 0.13523-0.14334 0.13526l-0.66323-7e-5c-0.07945-9e-6 -0.1434-0.06033-0.14336-0.13529l-7e-5 -0.67938c-9e-6 -0.07492 0.06394-0.13523 0.14333-0.13526z"/>
-            </clipPath>
-            <clipPath id="teardrop-clip-path" clipPathUnits="objectBoundingBox">
-                <path d="M 0.975,0.64658972 C 0.975,0.82786247 0.76208656,0.975 0.50003926,0.975 0.23775109,0.975 0.02026146,0.82782823 0.02507851,0.64658972 0.03134067,0.40346614 0.29266543,0.30443291 0.50003926,0.025 0.72017826,0.29527426 0.975,0.46529985 0.975,0.64658972 Z"/>
-            </clipPath>
-            <clipPath id="star-clip-path" clipPathUnits="objectBoundingBox">
-                <path d="m1 0.75-0.33401-0.0010179-0.16599 0.25102-0.16599-0.25102-0.33401 0.0010179 0.16802-0.25-0.16802-0.25 0.33401 0.0010179 0.16599-0.25102 0.16599 0.25102 0.33401-0.0010179-0.16802 0.25z"/>
-            </clipPath>
-            <clipPath id="clover-clip-path" clipPathUnits="objectBoundingBox">
-                <path d="m0.29492 0a0.29492 0.28702 0 0 0-0.29492 0.28702 0.29492 0.28702 0 0 0 0.09774 0.21298 0.29492 0.28702 0 0 0-0.09774 0.21298 0.29492 0.28702 0 0 0 0.29492 0.28702 0.29492 0.28702 0 0 0 0.20508-0.0817 0.29492 0.28702 0 0 0 0.20509 0.0817 0.29492 0.28702 0 0 0 0.29491-0.28702 0.29492 0.28702 0 0 0-0.09722-0.21298 0.29492 0.28702 0 0 0 0.09722-0.21298 0.29492 0.28702 0 0 0-0.29491-0.28702 0.29492 0.28702 0 0 0-0.20463 0.0813 0.29492 0.28702 0 0 0-0.20554-0.0813z"/>
-            </clipPath>
-            <clipPath id="clover-rotated-clip-path" clipPathUnits="objectBoundingBox">
-                <path d="m0.5 3.6997e-5a0.24116 0.24129 0 0 0-0.24116 0.24129 0.24116 0.24129 0 0 0 9.9936e-4 0.018179 0.24116 0.24129 0 0 0-0.018688-7.9594e-4 0.24116 0.24129 0 0 0-0.24116 0.24129 0.24116 0.24129 0 0 0 0.24116 0.2413 0.24116 0.24129 0 0 0 0.018688-0.0012999 0.24116 0.24129 0 0 0-9.9936e-4 0.018709 0.24116 0.24129 0 0 0 0.24116 0.2413 0.24116 0.24129 0 0 0 0.24116-0.2413 0.24116 0.24129 0 0 0-9.9936e-4 -0.018709 0.24116 0.24129 0 0 0 0.018688 0.0013 0.24116 0.24129 0 0 0 0.24116-0.2413 0.24116 0.24129 0 0 0-0.24116-0.24129 0.24116 0.24129 0 0 0-0.018688 0.0012999 0.24116 0.24129 0 0 0 9.9936e-4 -0.018719 0.24116 0.24129 0 0 0-0.24116-0.24129z"/>
-            </clipPath>
-        </defs>
-    </svg>
-</div>
-        <div class="modal-overlay" id="screen-pinning-modal">
-        <div class="modal-content">
-            <p><strong>Screen Pinning</strong> locks the app on screen so children can't navigate away.</p>
-            <p><strong>Enable it:</strong></p>
-            <ol>
-                <li>Open <strong>Settings &gt; Security &gt; More security settings &gt; App Pinning</strong> (on Samsung: Security &gt; Other security settings &gt; Pin Windows)</li>
-                <li>Toggle it on. Enable "Ask for unlock to unpin" for extra security</li>
-            </ol>
-            <p><strong>Pin the app:</strong></p>
-            <ol>
-                <li>Open BSharp, then tap the Recent Apps button (or swipe up and hold)</li>
-                <li>Tap the app icon at the top of the preview, then tap <strong>Pin</strong></li>
-            </ol>
-            <p><strong>Unpin:</strong> Swipe up and hold from the bottom (gesture nav) or hold Back + Overview together (button nav).</p>
-            <button class="button" type="button" onclick="close_screen_pinning_modal()">OK</button>
+        <div class="shape-container">
+            <svg style="height: 0; width: 0;">
+                <defs>
+                    <filter id="dilate_shape">
+                        <feMorphology operator="dilate" in="SourceGraphic" radius="2"/>
+                    </filter>
+                    <clipPath id="triangle-clip-path" clipPathUnits="objectBoundingBox">
+                        <path d="m.8192 1q.2338-0 .1293-.2028l-.3476-.6741q-.1046-.2028-.2091 0l-.3476.6741q-.1046.2028.1293.2028z"/>
+                    </clipPath>
+                    <clipPath id="triangle-upside-down-clip-path" clipPathUnits="objectBoundingBox">
+                        <path d="m.1808 0q-.2338 0-.1293.2028l.3476.6741q.1046.2028.2091 0l.3476-.6741q.1046-.2028-.1293-.2028z"/>
+                    </clipPath>
+                    <clipPath id="moon-clip-path" clipPathUnits="objectBoundingBox">
+                        <path d="m.5011.025a.4761.475 0 00-.4761.475.4761.475 0 00.4761.475.4761.475 0 00.4739-.4449.3187.318 0 01-.1276.027.3187.318 0 01-.3187-.318.3187.318 0 01.074-.2031.4761.475 0 00-.1016-.0111z"/>
+                    </clipPath>
+                    <clipPath id="moon-inverted-clip-path" clipPathUnits="objectBoundingBox">
+                        <path d="m.025.4989a.4761.475 270 00.475.4761.4761.475 270 00.475-.4761.4761.475 270 00-.4449-.4739.3187.318 270 01.027.1276.3187.318 270 01-.318.3187.3187.318 270 01-.2031-.074.4761.475 270 00-.0111.1016z"/>
+                    </clipPath>
+                    <clipPath id="heart-clip-path" clipPathUnits="objectBoundingBox">
+                        <path d="m 0.27446288,0.02497801 c -0.13778724,0 -0.24945956,0.12061671 -0.24945956,0.26932511 0,0.30247927 0.28243446,0.38179115 0.47499467,0.68067485 0.18220613,-0.2969646 0.47500535,-0.38796757 0.47500535,-0.68067485 0,-0.1487084 -0.1117578,-0.26932511 -0.24945955,-0.26932511 -0.0998009,0 -0.18570023,0.06363921 -0.2255458,0.15530394 -0.0395357,-0.09143312 -0.12536021,-0.15530394 -0.22527867,-0.15530394 z"/>
+                    </clipPath>
+                    <clipPath id="heart-upside-down-clip-path" clipPathUnits="objectBoundingBox">
+                        <path d="m0.27446 0.97542c-0.13779 0-0.24946-0.12062-0.24946-0.26933 0-0.30248 0.28243-0.38179 0.47499-0.68067 0.18221 0.29696 0.47501 0.38797 0.47501 0.68067 0 0.14871-0.11176 0.26933-0.24946 0.26933-0.099801 0-0.1857-0.063639-0.22555-0.1553-0.039536 0.091433-0.12536 0.1553-0.22528 0.1553z"/>
+                    </clipPath>
+                    <clipPath id="diamond-clip-path" clipPathUnits="objectBoundingBox">
+                        <path d="m0.57829 0.058879 0.36256 0.36263c0.04343 0.04344 0.04541 0.11139 0.0044 0.15236l-0.37145 0.37153c-0.04096 0.04097-0.1089 0.03899-0.15232-0.0044l-0.36256-0.36263c-0.04343-0.04344-0.04541-0.11139-0.0044-0.15236l0.37145-0.37153c0.04096-0.04097 0.1089-0.03899 0.15232 0.004399z"/>
+                    </clipPath>
+                    <clipPath id="square-clip-path" clipPathUnits="objectBoundingBox">
+                        <path d="m0.16833 0.025 0.66323 6.9e-5c0.07945 1e-5 0.1434 0.06033 0.14336 0.13529l7.1e-5 0.67938c9e-6 0.07492-0.06394 0.13523-0.14334 0.13526l-0.66323-7e-5c-0.07945-9e-6 -0.1434-0.06033-0.14336-0.13529l-7e-5 -0.67938c-9e-6 -0.07492 0.06394-0.13523 0.14333-0.13526z"/>
+                    </clipPath>
+                    <clipPath id="teardrop-clip-path" clipPathUnits="objectBoundingBox">
+                        <path d="M 0.975,0.64658972 C 0.975,0.82786247 0.76208656,0.975 0.50003926,0.975 0.23775109,0.975 0.02026146,0.82782823 0.02507851,0.64658972 0.03134067,0.40346614 0.29266543,0.30443291 0.50003926,0.025 0.72017826,0.29527426 0.975,0.46529985 0.975,0.64658972 Z"/>
+                    </clipPath>
+                    <clipPath id="star-clip-path" clipPathUnits="objectBoundingBox">
+                        <path d="m1 0.75-0.33401-0.0010179-0.16599 0.25102-0.16599-0.25102-0.33401 0.0010179 0.16802-0.25-0.16802-0.25 0.33401 0.0010179 0.16599-0.25102 0.16599 0.25102 0.33401-0.0010179-0.16802 0.25z"/>
+                    </clipPath>
+                    <clipPath id="clover-clip-path" clipPathUnits="objectBoundingBox">
+                        <path d="m0.29492 0a0.29492 0.28702 0 0 0-0.29492 0.28702 0.29492 0.28702 0 0 0 0.09774 0.21298 0.29492 0.28702 0 0 0-0.09774 0.21298 0.29492 0.28702 0 0 0 0.29492 0.28702 0.29492 0.28702 0 0 0 0.20508-0.0817 0.29492 0.28702 0 0 0 0.20509 0.0817 0.29492 0.28702 0 0 0 0.29491-0.28702 0.29492 0.28702 0 0 0-0.09722-0.21298 0.29492 0.28702 0 0 0 0.09722-0.21298 0.29492 0.28702 0 0 0-0.29491-0.28702 0.29492 0.28702 0 0 0-0.20463 0.0813 0.29492 0.28702 0 0 0-0.20554-0.0813z"/>
+                    </clipPath>
+                    <clipPath id="clover-rotated-clip-path" clipPathUnits="objectBoundingBox">
+                        <path d="m0.5 3.6997e-5a0.24116 0.24129 0 0 0-0.24116 0.24129 0.24116 0.24129 0 0 0 9.9936e-4 0.018179 0.24116 0.24129 0 0 0-0.018688-7.9594e-4 0.24116 0.24129 0 0 0-0.24116 0.24129 0.24116 0.24129 0 0 0 0.24116 0.2413 0.24116 0.24129 0 0 0 0.018688-0.0012999 0.24116 0.24129 0 0 0-9.9936e-4 0.018709 0.24116 0.24129 0 0 0 0.24116 0.2413 0.24116 0.24129 0 0 0 0.24116-0.2413 0.24116 0.24129 0 0 0-9.9936e-4 -0.018709 0.24116 0.24129 0 0 0 0.018688 0.0013 0.24116 0.24129 0 0 0 0.24116-0.2413 0.24116 0.24129 0 0 0-0.24116-0.24129 0.24116 0.24129 0 0 0-0.018688 0.0012999 0.24116 0.24129 0 0 0 9.9936e-4 -0.018719 0.24116 0.24129 0 0 0-0.24116-0.24129z"/>
+                    </clipPath>
+                </defs>
+            </svg>
         </div>
     </div>
-</div>
-    <script src="bsharp.js"></script>
+    <script type="module" src="/ts/main.ts"></script>
     </body>
 </html>

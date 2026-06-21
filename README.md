@@ -2,28 +2,11 @@
 
 Young children can acquire absolute (perfect) pitch — but adults cannot. The window closes around age 6. BSharp helps develop this ability using Eguchi's chord identification method.
 
-<p align="center">
-  <a href="https://play.google.com/store/apps/details?id=com.bsharp.app">
-    <img src="icon.svg" alt="BSharp" width="128">
-  </a>
-</p>
-
-<p align="center">
-  <a href="https://play.google.com/store/apps/details?id=com.bsharp.app">
-    <strong>See it on the Play Store</strong>
-  </a>
-</p>
+BSharp is a single-page web app. Build it to a folder of static assets and host it anywhere.
 
 ## How it Works
 
 Children listen to piano chords and learn to identify each one by its color. Start with two chords (red and yellow) and gradually introduce new ones as your child masters each level. Practice 5 times a day for 2–3 minutes each session — about 20–25 identifications.
-
-<p align="center">
-  <a href="https://play.google.com/store/apps/details?id=com.bsharp.app">
-    <img src="android/play-store-screenshots/phone-main-game.png" alt="BSharp" width="256">
-    <img src="android/play-store-screenshots/phone-correct-answer.png" alt="BSharp" width="256">
-  </a>
-</p>
 
 ## About the Eguchi Method
 
@@ -32,12 +15,6 @@ Eguchi's chord identification method was documented in research published in Psy
 Based on the open-source CIM Trainer by Paul Ganssle.
 
 ## Using BSharp
-
-<p align="center">
-  <a href="https://play.google.com/store/apps/details?id=com.bsharp.app">
-    <img src="android/feature-graphic.png" alt="BSharp" width="1028">
-  </a>
-</p>
 
 Children listen to a chord and tap the matching colored flag. The app tracks accuracy, adjusts chord frequency using an adaptive weighting algorithm (presenting harder chords more often), and supports multiple user profiles.
 
@@ -56,7 +33,14 @@ Children listen to a chord and tap the matching colored flag. The app tracks acc
 
 After mastering the 9 white-key chords, 5 black-key chords are introduced (Gray, Tan, Light Green, Light Purple, Sky Blue).
 
-# Developer 
+# Developer
+
+## Tech stack
+
+- **Build**: [Vite](https://vite.dev/) — bundles the app into a folder of static assets in `dist/`.
+- **Language**: TypeScript (core game logic, state, stats, audio).
+- **UI**: [Alpine.js](https://alpinejs.dev/) for the reactive shell (menu, panels) and [Tailwind CSS](https://tailwindcss.com/) for styling, alongside the bespoke flag/note-shape CSS.
+- **Audio**: Pre-generated MP3 chord files (`static/chords/`), bundled by Vite.
 
 ## Building
 
@@ -64,18 +48,19 @@ Requires Node.js.
 
 ```bash
 npm install
-make build
+make build      # or: npm run build
 ```
 
-This produces `dist/` with the bundled app.
+This produces `dist/` — a static `index.html` plus hashed JS/CSS and audio/font assets. Serve the folder with any static file server.
 
-## Android
+## Developing
 
 ```bash
-make android-deploy
+make dev        # Vite dev server with hot reload
+make check      # TypeScript type checking (tsc --noEmit)
+make test-unit  # Vitest unit + smoke tests
+make test-ui    # Playwright UI tests (requires browsers)
 ```
-
-Then open `android/` in Android Studio, sync Gradle, and run on a device or emulator.
 
 ## Attribution
 

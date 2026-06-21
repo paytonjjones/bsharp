@@ -1,6 +1,7 @@
 import { AudioFileInfo, NoteAudioFileInfo } from './types';
 import { AUDIO_FILE_LIST, NOTE_AUDIO_FILE_LIST, getNoteFilePrefix } from './data';
 import { randomElem } from './utils';
+import { chordAudioUrl } from './audio_assets';
 
 let AUDIO_FILES: Map<string, AudioFileInfo[]> | null = null;
 
@@ -38,7 +39,7 @@ export function audioFileElem(audioFile: AudioFileInfo, onEnded: () => void): HT
         audioFile.elem.classList.add('chord');
         audioFile.elem.controls = true;
         audioFile.elem.preload = 'auto';
-        audioFile.elem.src = 'static/chords/' + audioFile.filename;
+        audioFile.elem.src = chordAudioUrl(audioFile.filename);
         audioFile.elem.onended = onEnded;
         audioFile.elem.load();
     }

@@ -1,18 +1,16 @@
-.PHONY: build check clean test test-unit test-ui test-integration test-screenshot test-screenshot-update android-deploy android-release icons generate-audio move-downloaded-chords move-downloaded-notes convert-audio-to-mp3 play-store-screenshots
+.PHONY: build dev preview check test test-unit test-ui test-integration test-screenshot test-screenshot-update clean generate-audio move-downloaded-chords move-downloaded-notes convert-audio-to-mp3
 
-build: dist/bsharp.js dist/style.css dist/index.html dist/static
+# Build the static site (single-page web app) into dist/ via Vite.
+build:
+	npm run build
 
-dist/bsharp.js: src/ts/*.ts
-	npx esbuild src/ts/main.ts --bundle --outfile=dist/bsharp.js --format=iife --target=es2020
+# Start the Vite dev server with hot reloading.
+dev:
+	npm run dev
 
-dist/style.css: src/scss/*.scss
-	npx sass src/scss/style.scss dist/style.css --no-source-map
-
-dist/index.html: src/index.html
-	cp src/index.html dist/index.html
-
-dist/static: static
-	cp -r static dist/
+# Preview the production build locally.
+preview:
+	npm run preview
 
 check:
 	npx tsc --noEmit
@@ -35,24 +33,8 @@ test-screenshot: build
 test-screenshot-update: build
 	npx playwright test --config tests/playwright.screenshot.config.ts --update-snapshots=all
 
-android-deploy: build
-	mkdir -p android/app/src/main/assets
-	cp -r dist/* android/app/src/main/assets/
-
-android-release: android-deploy
-	cd android && JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home" ./gradlew bundleRelease
-	@echo "AAB: android/app/build/outputs/bundle/release/app-release.aab"
-
-icons:
-	bash scripts/generate_icons.sh
-
-play-store-screenshots: build
-	npx http-server dist -p 8080 -c-1 --silent & echo $$! > .http-server.pid
-	sleep 1
-	npx tsx scripts/play-store-screenshots.ts; kill $$(cat .http-server.pid); rm -f .http-server.pid
-
 clean:
-	rm -rf dist/*
+	rm -rf dist
 
 # --- Audio generation (one-time, requires browser + ffmpeg) ---
 
