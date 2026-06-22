@@ -29,7 +29,7 @@ Children listen to piano chords and learn to identify each one by its color. Sta
 
 Eguchi's chord identification method was documented in research published in Psychology of Music. Children associate chords with colors (red, yellow, blue, black, green, orange, purple, pink, brown) and progress through levels. New chords should be introduced no sooner than every 2 weeks, and only after the child can identify all current chords with 100% accuracy.
 
-Based on the open-source CIM Trainer by Paul Ganssle.
+Based on the [open-source CIM Trainer](https://github.com/pganssle/cim) by Paul Ganssle.
 
 ## Using BSharp
 
