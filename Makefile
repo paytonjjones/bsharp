@@ -1,4 +1,4 @@
-.PHONY: build check clean test test-unit test-ui test-integration test-screenshot test-screenshot-update android-deploy android-release icons generate-audio move-downloaded-chords move-downloaded-notes convert-audio-to-mp3 play-store-screenshots
+.PHONY: build check clean test test-unit test-ui test-integration test-screenshot test-screenshot-update test-android-touch android-deploy android-release icons generate-audio move-downloaded-chords move-downloaded-notes convert-audio-to-mp3 play-store-screenshots
 
 build: dist/bsharp.js dist/style.css dist/index.html dist/static
 
@@ -35,7 +35,13 @@ test-screenshot: build
 test-screenshot-update: build
 	npx playwright test --config tests/playwright.screenshot.config.ts --update-snapshots=all
 
+test-android-touch: android-deploy
+	npx playwright install android
+	cd android && ./gradlew installDebug
+	npx playwright test --config tests/android/playwright.android.config.ts
+
 android-deploy: build
+	rm -rf android/app/src/main/assets/*
 	mkdir -p android/app/src/main/assets
 	cp -r dist/* android/app/src/main/assets/
 
@@ -53,6 +59,8 @@ play-store-screenshots: build
 
 clean:
 	rm -rf dist/*
+	rm -rf android/app/src/main/assets/*
+	rm -rf android/app/build
 
 # --- Audio generation (one-time, requires browser + ffmpeg) ---
 

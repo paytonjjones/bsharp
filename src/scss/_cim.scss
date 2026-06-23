@@ -179,6 +179,19 @@ div.flag-container {
     position: relative;
 }
 
+#flag-holder,
+#flag-holder .flag-wrapper,
+#flag-holder .flag {
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+#flag-holder .flag-wrapper.visible {
+    cursor: pointer;
+}
+
 #onboarding-overlay {
     display: none;
     position: absolute;
