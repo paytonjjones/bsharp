@@ -182,7 +182,7 @@ div.flag-container {
 #flag-holder,
 #flag-holder .flag-wrapper,
 #flag-holder .flag {
-    touch-action: manipulation;
+    touch-action: none;
     user-select: none;
     -webkit-user-select: none;
     -webkit-tap-highlight-color: transparent;

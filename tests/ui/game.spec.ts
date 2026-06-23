@@ -97,6 +97,39 @@ test("small flag drag counts as an answer", async ({ page }) => {
   await expect(page.locator("#stats-total")).toHaveText("1");
 });
 
+test("small touch drag on a flag counts as an answer", async ({
+  page,
+  browserName,
+}) => {
+  test.skip(browserName !== "chromium", "uses Chromium CDP touch input");
+
+  await page.locator("#play-button").click();
+  await page.waitForTimeout(1000);
+
+  const box = await page.locator("#red-flag").boundingBox();
+  expect(box).not.toBeNull();
+  const startX = box!.x + box!.width / 2;
+  const startY = box!.y + box!.height / 2;
+
+  const client = await page.context().newCDPSession(page);
+  await client.send("Input.dispatchTouchEvent", {
+    type: "touchStart",
+    touchPoints: [{ x: startX, y: startY, radiusX: 4, radiusY: 4, id: 1 }],
+  });
+  await client.send("Input.dispatchTouchEvent", {
+    type: "touchMove",
+    touchPoints: [
+      { x: startX + 20, y: startY + 10, radiusX: 4, radiusY: 4, id: 1 },
+    ],
+  });
+  await client.send("Input.dispatchTouchEvent", {
+    type: "touchEnd",
+    touchPoints: [],
+  });
+
+  await expect(page.locator("#stats-total")).toHaveText("1");
+});
+
 test("large flag drag does not count as an answer", async ({ page }) => {
   await page.locator("#play-button").click();
   await page.waitForTimeout(1000);
