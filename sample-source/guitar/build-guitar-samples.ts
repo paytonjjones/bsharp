@@ -63,8 +63,19 @@ interface ManifestEntry {
     sourceRangeIndex: number | null;
     guitarString: GuitarString | null;
     fret: number | null;
+    detectedRegionStartSec: number | null;
+    detectedRegionEndSec: number | null;
     segmentStartSec: number | null;
     segmentEndSec: number | null;
+    fixedSegmentDurationSec: number | null;
+    sourceDurationSec: number | null;
+    nextRegionStartSec: number | null;
+    rejectedForNextRegion: boolean;
+    rejectedForShortSource: boolean;
+    measuredDurationSec: number | null;
+    onsetOffsetSec: number | null;
+    onsetStatus: Status | null;
+    validationMessage: string | null;
     outputFile: string | null;
 }
 
@@ -77,6 +88,13 @@ const MANIFEST_PATH = path.join(SCRIPT_DIR, 'guitar-samples.manifest.json');
 const REPORT_PATH = path.join(SCRIPT_DIR, 'guitar-pitch-report.md');
 const COMMAND = 'npm run build:guitar-samples';
 const OUTPUT_EXT = 'mp3';
+const MEDIUM_SUFFIX = 'medium';
+const FIXED_SEGMENT_DURATION_SEC = 2.0;
+const SEGMENT_PREROLL_SEC = 0.035;
+const ONSET_EARLY_WARNING_SEC = 0.015;
+const ONSET_LATE_WARNING_SEC = 0.07;
+const SOURCE_END_TOLERANCE_SEC = 0.0005;
+const DURATION_TOLERANCE_SEC = 0.025;
 
 const NOTE_BASE_TO_SEMITONE: Record<string, number> = {
     C: 0, 'C#': 1, Db: 1,
@@ -456,8 +474,8 @@ function buildRegionDebug(source: SourceFileInfo, regions: Region[]): string {
 }
 
 function segmentBounds(region: Region): { startSec: number; endSec: number } {
-    const startSec = Math.max(0, region.startSec - 0.035);
-    const endSec = Math.min(region.endSec + 0.08, startSec + 3.5);
+    const startSec = Math.max(0, region.startSec - SEGMENT_PREROLL_SEC);
+    const endSec = startSec + FIXED_SEGMENT_DURATION_SEC;
     return { startSec, endSec };
 }
 
@@ -620,6 +638,70 @@ function measurePitch(outputPath: string, expectedHz: number, tempDir: string): 
     return median(measured);
 }
 
+function measureDuration(outputPath: string, tempDir: string): number {
+    const wavPath = path.join(tempDir, `${path.basename(outputPath)}.duration.wav`);
+    decodeAudioToWav(outputPath, wavPath);
+    const wav = readWavFloat32(wavPath);
+    return wav.samples.length / wav.sampleRate;
+}
+
+function measureFirstOnset(outputPath: string, tempDir: string): number | null {
+    const wavPath = path.join(tempDir, `${path.basename(outputPath)}.onset.wav`);
+    decodeAudioToWav(outputPath, wavPath);
+    const wav = readWavFloat32(wavPath);
+    return detectFirstOnset(wav);
+}
+
+function detectFirstOnset(wav: WavData): number | null {
+    const windowSize = Math.max(1, Math.round(wav.sampleRate * 0.005));
+    const hopSize = Math.max(1, Math.round(wav.sampleRate * 0.001));
+    const rmsFrames: number[] = [];
+
+    for (let start = 0; start + windowSize <= wav.samples.length; start += hopSize) {
+        let sum = 0;
+        for (let i = start; i < start + windowSize; i += 1) {
+            sum += wav.samples[i] * wav.samples[i];
+        }
+        rmsFrames.push(Math.sqrt(sum / windowSize));
+    }
+
+    if (rmsFrames.length === 0) {
+        return null;
+    }
+
+    const sortedRms = [...rmsFrames].sort((a, b) => a - b);
+    const percentile = (p: number) => sortedRms[Math.min(sortedRms.length - 1, Math.floor(sortedRms.length * p))] ?? 0;
+    const noiseFloor = percentile(0.1);
+    const peakRms = sortedRms[sortedRms.length - 1] ?? 0;
+    const threshold = Math.max(noiseFloor * 10, peakRms * 0.03, 0.00012);
+
+    const firstIndex = rmsFrames.findIndex((rms) => rms >= threshold);
+    return firstIndex < 0 ? null : (firstIndex * hopSize) / wav.sampleRate;
+}
+
+function statusForOnset(onsetOffsetSec: number | null): Status {
+    if (onsetOffsetSec === null || !Number.isFinite(onsetOffsetSec)) {
+        return 'warn';
+    }
+    if (onsetOffsetSec < ONSET_EARLY_WARNING_SEC || onsetOffsetSec > ONSET_LATE_WARNING_SEC) {
+        return 'warn';
+    }
+    return 'pass';
+}
+
+function mergeStatuses(statuses: Status[]): Status {
+    if (statuses.includes('fail')) {
+        return 'fail';
+    }
+    if (statuses.includes('missing')) {
+        return 'missing';
+    }
+    if (statuses.includes('warn')) {
+        return 'warn';
+    }
+    return 'pass';
+}
+
 function statusForCents(error: number | null): Status {
     if (error === null || !Number.isFinite(error)) {
         return 'fail';
@@ -658,8 +740,19 @@ function buildMissingEntry(target: TargetNote): ManifestEntry {
         sourceRangeIndex: null,
         guitarString: null,
         fret: null,
+        detectedRegionStartSec: null,
+        detectedRegionEndSec: null,
         segmentStartSec: null,
         segmentEndSec: null,
+        fixedSegmentDurationSec: FIXED_SEGMENT_DURATION_SEC,
+        sourceDurationSec: null,
+        nextRegionStartSec: null,
+        rejectedForNextRegion: false,
+        rejectedForShortSource: false,
+        measuredDurationSec: null,
+        onsetOffsetSec: null,
+        onsetStatus: null,
+        validationMessage: 'No matching mf guitar source was selected for this target note.',
         outputFile: null,
     };
 }
@@ -696,8 +789,19 @@ function writeReport(entries: ManifestEntry[], targets: TargetNote[]): void {
             entry.guitarString,
             entry.fret,
             entry.sourceRangeIndex,
+            entry.detectedRegionStartSec,
+            entry.detectedRegionEndSec,
             entry.segmentStartSec,
             entry.segmentEndSec,
+            entry.fixedSegmentDurationSec,
+            entry.sourceDurationSec,
+            entry.nextRegionStartSec,
+            entry.rejectedForNextRegion,
+            entry.rejectedForShortSource,
+            entry.measuredDurationSec,
+            entry.onsetOffsetSec,
+            entry.onsetStatus,
+            entry.validationMessage,
             entry.outputFile,
         ].map(markdownTableValue).join(' | ');
     });
@@ -713,8 +817,8 @@ function writeReport(entries: ManifestEntry[], targets: TargetNote[]): void {
         `- Warnings: ${warnings.length}${warnings.length ? ` (${warnings.map((entry) => entry.outputNoteName).join(', ')})` : ''}`,
         `- Failures: ${failures.length}${failures.length ? ` (${failures.map((entry) => entry.outputNoteName).join(', ')})` : ''}`,
         '',
-        '| Note | MIDI | Status | Expected Hz | Source Hz | Source Cents | Correction Cents | Final Hz | Final Cents | Source File | String | Fret | Range Index | Segment Start | Segment End | Output File |',
-        '| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | --- |',
+        '| Note | MIDI | Status | Expected Hz | Source Hz | Source Cents | Correction Cents | Final Hz | Final Cents | Source File | String | Fret | Range Index | Region Start | Region End | Segment Start | Segment End | Fixed Duration | Source Duration | Next Region Start | Rejected Next Region | Rejected Short Source | Measured Duration | Onset Offset | Onset Status | Validation Message | Output File |',
+        '| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | --- | --- | --- |',
         ...rows,
         '',
     ];
@@ -789,7 +893,55 @@ async function buildAll(dryRun: boolean): Promise<void> {
             }
 
             const { startSec, endSec } = segmentBounds(region);
-            const relativeOutputFile = `static/notes/guitar/${target.outputNoteName}.${OUTPUT_EXT}`;
+            const sourceDurationSec = decoded.wav.samples.length / decoded.wav.sampleRate;
+            const nextRegion = decoded.regions[candidate.sourceRangeIndex + 1] ?? null;
+            const rejectedForNextRegion = nextRegion !== null && nextRegion.startSec < endSec;
+            const rejectedForShortSource = sourceDurationSec + SOURCE_END_TOLERANCE_SEC < endSec;
+            const timingMessages = [
+                rejectedForNextRegion
+                    ? `Rejected: next detected region starts at ${nextRegion!.startSec.toFixed(4)}s inside fixed 2.000s window ending at ${endSec.toFixed(4)}s.`
+                    : null,
+                rejectedForShortSource
+                    ? `Rejected: source ends at ${sourceDurationSec.toFixed(4)}s before fixed 2.000s window ending at ${endSec.toFixed(4)}s.`
+                    : null,
+            ].filter((message): message is string => message !== null);
+
+            if (timingMessages.length > 0) {
+                entries.push({
+                    outputNoteName: target.outputNoteName,
+                    midi: target.midi,
+                    expectedHz: roundNumber(target.expectedHz)!,
+                    preCorrectionMeasuredHz: null,
+                    preCorrectionCentsError: null,
+                    pitchCorrectionCents: null,
+                    measuredHz: null,
+                    centsError: null,
+                    status: 'fail',
+                    sourceFile: candidate.source.filename,
+                    sourceRangeStart: candidate.source.sourceRangeStart,
+                    sourceRangeEnd: candidate.source.sourceRangeEnd,
+                    sourceRangeIndex: candidate.sourceRangeIndex,
+                    guitarString: candidate.source.guitarString,
+                    fret: candidate.fret,
+                    detectedRegionStartSec: roundNumber(region.startSec),
+                    detectedRegionEndSec: roundNumber(region.endSec),
+                    segmentStartSec: roundNumber(startSec),
+                    segmentEndSec: roundNumber(endSec),
+                    fixedSegmentDurationSec: FIXED_SEGMENT_DURATION_SEC,
+                    sourceDurationSec: roundNumber(sourceDurationSec),
+                    nextRegionStartSec: roundNumber(nextRegion?.startSec ?? null),
+                    rejectedForNextRegion,
+                    rejectedForShortSource,
+                    measuredDurationSec: null,
+                    onsetOffsetSec: null,
+                    onsetStatus: null,
+                    validationMessage: timingMessages.join(' '),
+                    outputFile: null,
+                });
+                continue;
+            }
+
+            const relativeOutputFile = `static/notes/guitar/${target.outputNoteName}_${MEDIUM_SUFFIX}.${OUTPUT_EXT}`;
             const outputPath = path.join(REPO_ROOT, relativeOutputFile);
             const segmentWavPath = path.join(tempDir, `${target.outputNoteName}.segment.wav`);
             exportSegmentToWav(candidate.source, segmentWavPath, startSec, endSec);
@@ -813,7 +965,27 @@ async function buildAll(dryRun: boolean): Promise<void> {
                 error = measuredHz === null ? null : centsError(measuredHz, target.expectedHz);
             }
 
-            const status = statusForCents(error);
+            const measuredDurationSec = measureDuration(outputPath, tempDir);
+            const onsetOffsetSec = measureFirstOnset(outputPath, tempDir);
+            const pitchStatus = statusForCents(error);
+            const durationStatus: Status = Math.abs(measuredDurationSec - FIXED_SEGMENT_DURATION_SEC) <= DURATION_TOLERANCE_SEC
+                ? 'pass'
+                : 'fail';
+            const onsetStatus = statusForOnset(onsetOffsetSec);
+            const status = mergeStatuses([pitchStatus, durationStatus, onsetStatus]);
+            const validationMessage = [
+                durationStatus === 'fail'
+                    ? `Measured duration ${measuredDurationSec.toFixed(4)}s is outside tolerance for fixed 2.000s export.`
+                    : null,
+                onsetStatus === 'warn'
+                    ? `Onset offset ${onsetOffsetSec === null ? 'could not be measured' : `${onsetOffsetSec.toFixed(4)}s`} is outside expected ${ONSET_EARLY_WARNING_SEC.toFixed(3)}-${ONSET_LATE_WARNING_SEC.toFixed(3)}s range.`
+                    : null,
+                pitchStatus === 'fail'
+                    ? 'Pitch validation failed.'
+                    : pitchStatus === 'warn'
+                        ? 'Pitch validation warning.'
+                        : null,
+            ].filter((message): message is string => message !== null).join(' ') || null;
             if (status === 'fail') {
                 rmSync(outputPath, { force: true });
             }
@@ -834,8 +1006,19 @@ async function buildAll(dryRun: boolean): Promise<void> {
                 sourceRangeIndex: candidate.sourceRangeIndex,
                 guitarString: candidate.source.guitarString,
                 fret: candidate.fret,
+                detectedRegionStartSec: roundNumber(region.startSec),
+                detectedRegionEndSec: roundNumber(region.endSec),
                 segmentStartSec: roundNumber(startSec),
                 segmentEndSec: roundNumber(endSec),
+                fixedSegmentDurationSec: FIXED_SEGMENT_DURATION_SEC,
+                sourceDurationSec: roundNumber(sourceDurationSec),
+                nextRegionStartSec: roundNumber(nextRegion?.startSec ?? null),
+                rejectedForNextRegion,
+                rejectedForShortSource,
+                measuredDurationSec: roundNumber(measuredDurationSec),
+                onsetOffsetSec: roundNumber(onsetOffsetSec),
+                onsetStatus,
+                validationMessage,
                 outputFile: status === 'fail' ? null : relativeOutputFile,
             });
         }
@@ -845,7 +1028,7 @@ async function buildAll(dryRun: boolean): Promise<void> {
 
         const failures = entries.filter((entry) => entry.status === 'fail');
         if (failures.length > 0) {
-            throw new Error(`Pitch validation failed for ${failures.map((entry) => entry.outputNoteName).join(', ')}`);
+            throw new Error(`Guitar sample validation failed for ${failures.map((entry) => entry.outputNoteName).join(', ')}`);
         }
 
         console.log(`Generated ${entries.filter((entry) => entry.outputFile).length} guitar samples.`);
