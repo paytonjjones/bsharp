@@ -46,14 +46,12 @@ w.show_screen_pinning_info = showScreenPinningInfo;
 w.close_screen_pinning_modal = closeScreenPinningModal;
 w.__bsharp_correct_color = () => _CORRECT_COLOR;
 
-const FLAG_TAP_SLOP_PX = 28;
+const FLAG_BOUNDARY_SLOP_PX = 10;
 
 type PendingFlagPointer = {
     pointerId: number;
-    startX: number;
-    startY: number;
-    maxDistance: number;
     wrapperElem: HTMLElement;
+    leftOriginalBounds: boolean;
 };
 
 let pendingFlagPointer: PendingFlagPointer | null = null;
@@ -63,6 +61,21 @@ function flagWrapperFromEvent(event: PointerEvent, holder: HTMLElement): HTMLEle
     const wrapperElem = target?.closest('.flag-wrapper.visible') as HTMLElement | null;
     if (!wrapperElem || !holder.contains(wrapperElem)) return null;
     return wrapperElem;
+}
+
+function isPointInsideElementBounds(
+    x: number,
+    y: number,
+    elem: HTMLElement,
+    slopPx = FLAG_BOUNDARY_SLOP_PX,
+): boolean {
+    const rect = elem.getBoundingClientRect();
+    return (
+        x >= rect.left - slopPx &&
+        x <= rect.right + slopPx &&
+        y >= rect.top - slopPx &&
+        y <= rect.bottom + slopPx
+    );
 }
 
 export function installFlagPointerHandling(): void {
@@ -80,10 +93,8 @@ export function installFlagPointerHandling(): void {
 
         pendingFlagPointer = {
             pointerId: event.pointerId,
-            startX: event.clientX,
-            startY: event.clientY,
-            maxDistance: 0,
             wrapperElem,
+            leftOriginalBounds: false,
         };
 
         if (wrapperElem.setPointerCapture) {
@@ -93,24 +104,30 @@ export function installFlagPointerHandling(): void {
 
     holder.addEventListener('pointermove', (event) => {
         if (!pendingFlagPointer || pendingFlagPointer.pointerId !== event.pointerId) return;
-        const dx = event.clientX - pendingFlagPointer.startX;
-        const dy = event.clientY - pendingFlagPointer.startY;
-        pendingFlagPointer.maxDistance = Math.max(
-            pendingFlagPointer.maxDistance,
-            Math.hypot(dx, dy),
-        );
+        if (
+            !isPointInsideElementBounds(
+                event.clientX,
+                event.clientY,
+                pendingFlagPointer.wrapperElem,
+            )
+        ) {
+            pendingFlagPointer.leftOriginalBounds = true;
+        }
     });
 
     holder.addEventListener('pointerup', (event) => {
         if (!pendingFlagPointer || pendingFlagPointer.pointerId !== event.pointerId) return;
 
-        const { maxDistance, wrapperElem } = pendingFlagPointer;
+        const pending = pendingFlagPointer;
         pendingFlagPointer = null;
 
-        if (maxDistance <= FLAG_TAP_SLOP_PX) {
+        if (
+            !pending.leftOriginalBounds &&
+            isPointInsideElementBounds(event.clientX, event.clientY, pending.wrapperElem)
+        ) {
             event.preventDefault();
             stopCurrentAudio();
-            selectFlagWrapper(wrapperElem);
+            selectFlagWrapper(pending.wrapperElem);
         }
     });
 

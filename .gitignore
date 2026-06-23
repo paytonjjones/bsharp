@@ -6,3 +6,4 @@ tests/screenshot/*-snapshots/
 .idea/
 icon-drafts/
 tmp/
+sample-source/

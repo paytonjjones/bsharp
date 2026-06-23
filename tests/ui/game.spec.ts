@@ -130,18 +130,67 @@ test("small touch drag on a flag counts as an answer", async ({
   await expect(page.locator("#stats-total")).toHaveText("1");
 });
 
-test("large flag drag does not count as an answer", async ({ page }) => {
+test("large flag drag inside same flag counts as an answer", async ({ page }) => {
   await page.locator("#play-button").click();
   await page.waitForTimeout(1000);
 
   const box = await page.locator("#red-flag").boundingBox();
   expect(box).not.toBeNull();
-  const startX = box!.x + box!.width / 2;
+  const startX = box!.x + 20;
   const startY = box!.y + box!.height / 2;
+  const endX = box!.x + box!.width - 20;
 
   await page.mouse.move(startX, startY);
   await page.mouse.down();
-  await page.mouse.move(startX + 60, startY);
+  await page.mouse.move(endX, startY);
+  await page.mouse.up();
+
+  await expect(page.locator("#stats-total")).toHaveText("1");
+});
+
+test("drag leaving original flag does not count as an answer", async ({
+  page,
+}) => {
+  await page.locator("#play-button").click();
+  await page.waitForTimeout(1000);
+
+  const redBox = await page.locator("#red-flag").boundingBox();
+  const yellowBox = await page.locator("#yellow-flag").boundingBox();
+  expect(redBox).not.toBeNull();
+  expect(yellowBox).not.toBeNull();
+  const startX = redBox!.x + redBox!.width / 2;
+  const startY = redBox!.y + redBox!.height / 2;
+  const endX = yellowBox!.x + yellowBox!.width / 2;
+  const endY = yellowBox!.y + yellowBox!.height / 2;
+
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(endX, endY);
+  await page.mouse.up();
+
+  await expect(page.locator("#stats-total")).toHaveText("0");
+  await expect(page.locator("#next-chord")).toHaveClass(/deactivated/);
+});
+
+test("drag leaving and returning to original flag does not count", async ({
+  page,
+}) => {
+  await page.locator("#play-button").click();
+  await page.waitForTimeout(1000);
+
+  const redBox = await page.locator("#red-flag").boundingBox();
+  const yellowBox = await page.locator("#yellow-flag").boundingBox();
+  expect(redBox).not.toBeNull();
+  expect(yellowBox).not.toBeNull();
+  const startX = redBox!.x + redBox!.width / 2;
+  const startY = redBox!.y + redBox!.height / 2;
+  const outsideX = yellowBox!.x + yellowBox!.width / 2;
+  const outsideY = yellowBox!.y + yellowBox!.height / 2;
+
+  await page.mouse.move(startX, startY);
+  await page.mouse.down();
+  await page.mouse.move(outsideX, outsideY);
+  await page.mouse.move(startX, startY);
   await page.mouse.up();
 
   await expect(page.locator("#stats-total")).toHaveText("0");
