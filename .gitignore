@@ -6,4 +6,11 @@ tests/screenshot/*-snapshots/
 .idea/
 icon-drafts/
 tmp/
-sample-source/
+
+# Keep sample-source docs/scripts/reports committable, but never commit raw audio dumps.
+sample-source/**/raw/
+sample-source/**/*.aif
+sample-source/**/*.aiff
+sample-source/**/*.wav
+sample-source/**/*.wave
+sample-source/**/prompt.md

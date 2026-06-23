@@ -3,6 +3,9 @@
   "version": "1.0.0",
   "description": "BSharp: Perfect Pitch Trainer",
   "private": true,
+  "scripts": {
+    "build:guitar-samples": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON sample-source/guitar/build-guitar-samples.ts --all"
+  },
   "devDependencies": {
     "@playwright/test": "^1.58.1",
     "@types/node": "^25.2.1",
