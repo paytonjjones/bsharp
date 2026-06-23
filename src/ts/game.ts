@@ -119,11 +119,14 @@ export function playAudio(): void {
     chord.play();
 }
 
-export function selectFlag(elem: HTMLElement): void {
+export function selectFlagWrapper(wrapperElem: HTMLElement): void {
     if (_SELECTED_ELEM !== null) return;
     if (!_AUDIO_PLAYED) return;
 
-    const chosenColor = elem.parentElement!.dataset.color!;
+    const chosenColor = wrapperElem.dataset.color;
+    const elem = wrapperElem.querySelector(':scope > .flag') as HTMLElement | null;
+    if (!chosenColor || !elem) return;
+
     const flagHolder = document.getElementById('flag-holder')!;
 
     _EMOJI_LOCK = true;
