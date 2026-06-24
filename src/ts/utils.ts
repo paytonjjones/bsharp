@@ -1,14 +1,3 @@
-export function normalRandom(mean = 0, stdev = 1): number {
-    const u = 1 - Math.random();
-    const v = Math.random();
-    const z = Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-    return z * stdev + mean;
-}
-
-export function clip(n: number, low: number, high: number): number {
-    return Math.min(Math.max(n, low), high);
-}
-
 export function sum(arr: number[]): number {
     return arr.reduce((a, b) => a + b, 0);
 }
@@ -36,10 +25,6 @@ export function randomElem<T>(arr: T[], weights?: number[]): T {
         }
         return arr[arr.length - 1];
     }
-}
-
-export function randomDuration(mean = 2, stdev = 0.3, min = 1.0, max = 2.5): number {
-    return clip(normalRandom(mean, stdev), min, max);
 }
 
 export function padNumber(value: number, padding: number): string {

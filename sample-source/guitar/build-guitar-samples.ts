@@ -4,6 +4,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import Pitchfinder from 'pitchfinder';
 
 type Dynamic = 'pp' | 'mf' | 'ff';
 type GuitarString = 'sulE' | 'sulA' | 'sulD' | 'sulG' | 'sulB' | 'sul_E';
@@ -47,13 +48,28 @@ interface Region {
     peakRms: number;
 }
 
+interface PitchMethodMeasurement {
+    yinHz: number | null;
+    amdfHz: number | null;
+}
+
 interface ManifestEntry {
     outputNoteName: string;
     midi: number;
     expectedHz: number;
+    preCorrectionYinHz: number | null;
+    preCorrectionYinCentsError: number | null;
+    preCorrectionAmdfHz: number | null;
+    preCorrectionAmdfCentsError: number | null;
+    preCorrectionMethodAgreementCents: number | null;
     preCorrectionMeasuredHz: number | null;
     preCorrectionCentsError: number | null;
     pitchCorrectionCents: number | null;
+    finalYinHz: number | null;
+    finalYinCentsError: number | null;
+    finalAmdfHz: number | null;
+    finalAmdfCentsError: number | null;
+    finalMethodAgreementCents: number | null;
     measuredHz: number | null;
     centsError: number | null;
     status: Status;
@@ -72,6 +88,9 @@ interface ManifestEntry {
     nextRegionStartSec: number | null;
     rejectedForNextRegion: boolean;
     rejectedForShortSource: boolean;
+    targetOnsetOffsetSec: number | null;
+    preAlignmentOnsetOffsetSec: number | null;
+    onsetAlignmentShiftSec: number | null;
     measuredDurationSec: number | null;
     onsetOffsetSec: number | null;
     onsetStatus: Status | null;
@@ -83,14 +102,17 @@ const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, '../..');
 const RAW_DIR = path.join(SCRIPT_DIR, 'raw');
 const NOTES_DIR = path.join(REPO_ROOT, 'static/notes');
+const PIANO_NOTES_DIR = path.join(NOTES_DIR, 'piano');
 const OUTPUT_DIR = path.join(NOTES_DIR, 'guitar');
-const MANIFEST_PATH = path.join(SCRIPT_DIR, 'guitar-samples.manifest.json');
-const REPORT_PATH = path.join(SCRIPT_DIR, 'guitar-pitch-report.md');
+const ARTIFACTS_DIR = path.join(SCRIPT_DIR, 'artifacts/samples');
+const MANIFEST_PATH = path.join(ARTIFACTS_DIR, 'manifest.json');
+const REPORT_PATH = path.join(ARTIFACTS_DIR, 'report.md');
 const COMMAND = 'npm run build:guitar-samples';
 const OUTPUT_EXT = 'mp3';
 const MEDIUM_SUFFIX = 'medium';
 const FIXED_SEGMENT_DURATION_SEC = 2.0;
 const SEGMENT_PREROLL_SEC = 0.035;
+const TARGET_ONSET_OFFSET_SEC = 0.05;
 const ONSET_EARLY_WARNING_SEC = 0.015;
 const ONSET_LATE_WARNING_SEC = 0.07;
 const SOURCE_END_TOLERANCE_SEC = 0.0005;
@@ -227,7 +249,7 @@ function pianoPrefixToNoteName(prefix: string): string {
 }
 
 function deriveTargetNotes(): TargetNote[] {
-    const filenames = readdirSync(NOTES_DIR).filter((filename) => /^.+_(short|medium|long)\.mp3$/.test(filename));
+    const filenames = readdirSync(PIANO_NOTES_DIR).filter((filename) => /^.+_(short|medium|long)\.mp3$/.test(filename));
     const prefixes = [...new Set(filenames.map((filename) => filename.replace(/_(short|medium|long)\.mp3$/, '')))];
 
     return prefixes.map((outputNoteName) => {
@@ -502,6 +524,48 @@ function exportSegmentToWav(source: SourceFileInfo, outputPath: string, startSec
     ]);
 }
 
+function alignWavOnset(inputPath: string, outputPath: string, onsetOffsetSec: number | null): number | null {
+    if (onsetOffsetSec === null || !Number.isFinite(onsetOffsetSec)) {
+        runCommand('ffmpeg', [
+            '-v', 'error',
+            '-y',
+            '-i', inputPath,
+            '-ac', '1',
+            '-ar', '44100',
+            '-c:a', 'pcm_f32le',
+            outputPath,
+        ]);
+        return null;
+    }
+
+    const shiftSec = onsetOffsetSec - TARGET_ONSET_OFFSET_SEC;
+    const filters = shiftSec > 0
+        ? [
+            `atrim=start=${shiftSec.toFixed(6)}`,
+            'asetpts=PTS-STARTPTS',
+            'apad',
+            `atrim=duration=${FIXED_SEGMENT_DURATION_SEC.toFixed(6)}`,
+        ]
+        : [
+            `adelay=${Math.round(Math.abs(shiftSec) * 1000)}:all=1`,
+            `atrim=duration=${FIXED_SEGMENT_DURATION_SEC.toFixed(6)}`,
+            'asetpts=PTS-STARTPTS',
+        ];
+
+    runCommand('ffmpeg', [
+        '-v', 'error',
+        '-y',
+        '-i', inputPath,
+        '-ac', '1',
+        '-ar', '44100',
+        '-af', filters.join(','),
+        '-c:a', 'pcm_f32le',
+        outputPath,
+    ]);
+
+    return shiftSec;
+}
+
 function exportCorrectedMp3(inputPath: string, outputPath: string, pitchRatio: number): void {
     const filters: string[] = [];
     if (Math.abs(pitchRatio - 1) > 0.000001) {
@@ -534,80 +598,6 @@ function decodeAudioToWav(inputPath: string, wavPath: string): void {
     ]);
 }
 
-function estimatePitchInWindow(samples: Float32Array, sampleRate: number, expectedHz: number): number | null {
-    const minHz = expectedHz / (2 ** (2 / 12));
-    const maxHz = expectedHz * (2 ** (2 / 12));
-    const minLag = Math.max(1, Math.floor(sampleRate / maxHz));
-    const maxLag = Math.min(samples.length - 2, Math.ceil(sampleRate / minHz));
-
-    let mean = 0;
-    for (const sample of samples) {
-        mean += sample;
-    }
-    mean /= samples.length;
-
-    let signalEnergy = 0;
-    const centered = new Float32Array(samples.length);
-    for (let i = 0; i < samples.length; i += 1) {
-        const window = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (samples.length - 1));
-        const value = (samples[i] - mean) * window;
-        centered[i] = value;
-        signalEnergy += value * value;
-    }
-    if (signalEnergy < 1e-8) {
-        return null;
-    }
-
-    const difference = new Float64Array(maxLag + 1);
-    for (let lag = minLag; lag <= maxLag; lag += 1) {
-        let sum = 0;
-        for (let i = 0; i + lag < centered.length; i += 1) {
-            const delta = centered[i] - centered[i + lag];
-            sum += delta * delta;
-        }
-        difference[lag] = sum;
-    }
-
-    let runningSum = 0;
-    for (let lag = minLag; lag <= maxLag; lag += 1) {
-        runningSum += difference[lag];
-        difference[lag] = runningSum === 0 ? 1 : (difference[lag] * (lag - minLag + 1)) / runningSum;
-    }
-
-    let bestLag = 0;
-    let bestValue = Infinity;
-    const threshold = 0.2;
-
-    for (let lag = minLag; lag <= maxLag; lag += 1) {
-        const normalized = difference[lag];
-        const isLocalMinimum = lag > minLag && lag < maxLag
-            && normalized <= difference[lag - 1]
-            && normalized <= difference[lag + 1];
-        if (isLocalMinimum && normalized < threshold) {
-            bestLag = lag;
-            bestValue = normalized;
-            break;
-        }
-        if (normalized < bestValue) {
-            bestLag = lag;
-            bestValue = normalized;
-        }
-    }
-
-    if (bestLag <= 0 || bestValue > 0.75) {
-        return null;
-    }
-
-    const previous = bestLag > minLag ? difference[bestLag - 1] : difference[bestLag];
-    const current = difference[bestLag];
-    const next = bestLag < maxLag ? difference[bestLag + 1] : difference[bestLag];
-    const denominator = previous - 2 * current + next;
-    const adjustment = Math.abs(denominator) > 1e-12 ? 0.5 * (previous - next) / denominator : 0;
-    const interpolatedLag = bestLag + Math.max(-1, Math.min(1, adjustment));
-
-    return sampleRate / interpolatedLag;
-}
-
 function median(values: number[]): number | null {
     if (values.length === 0) {
         return null;
@@ -617,25 +607,63 @@ function median(values: number[]): number | null {
     return sorted.length % 2 === 0 ? (sorted[middle - 1] + sorted[middle]) / 2 : sorted[middle];
 }
 
-function measurePitch(outputPath: string, expectedHz: number, tempDir: string): number | null {
-    const wavPath = path.join(tempDir, `${path.basename(outputPath)}.verify.wav`);
-    decodeAudioToWav(outputPath, wavPath);
-    const wav = readWavFloat32(wavPath);
+function isPlausiblePitch(pitch: number | null, expectedHz: number): pitch is number {
+    if (pitch === null || !Number.isFinite(pitch) || pitch <= 0) {
+        return false;
+    }
 
-    const startSample = Math.min(wav.samples.length, Math.round(wav.sampleRate * 0.2));
-    const windowSize = Math.max(2048, Math.round(wav.sampleRate * 0.09));
+    const minHz = expectedHz / (2 ** (2 / 12));
+    const maxHz = expectedHz * (2 ** (2 / 12));
+    return pitch >= minHz && pitch <= maxHz;
+}
+
+function measurePitchMethods(wav: WavData, expectedHz: number): PitchMethodMeasurement {
+    const startSample = Math.min(wav.samples.length, Math.round(wav.sampleRate * TARGET_ONSET_OFFSET_SEC));
+    const windowSize = Math.max(4096, Math.round(wav.sampleRate * 0.12));
     const hopSize = Math.round(wav.sampleRate * 0.04);
-    const measured: number[] = [];
+    const yin = Pitchfinder.YIN({
+        sampleRate: wav.sampleRate,
+        threshold: 0.15,
+        probabilityThreshold: 0.1,
+    });
+    const amdf = Pitchfinder.AMDF({
+        sampleRate: wav.sampleRate,
+        minFrequency: expectedHz / (2 ** (2 / 12)),
+        maxFrequency: expectedHz * (2 ** (2 / 12)),
+        sensitivity: 0.1,
+        ratio: 5,
+    });
+    const yinMeasured: number[] = [];
+    const amdfMeasured: number[] = [];
+    let windowsAnalyzed = 0;
 
-    for (let start = startSample; start + windowSize <= wav.samples.length && measured.length < 12; start += hopSize) {
+    for (let start = startSample; start + windowSize <= wav.samples.length && windowsAnalyzed < 12; start += hopSize) {
+        windowsAnalyzed += 1;
         const window = wav.samples.slice(start, start + windowSize);
-        const pitch = estimatePitchInWindow(window, wav.sampleRate, expectedHz);
-        if (pitch !== null && Number.isFinite(pitch)) {
-            measured.push(pitch);
+        const yinPitch = yin(window);
+        if (isPlausiblePitch(yinPitch, expectedHz)) {
+            yinMeasured.push(yinPitch);
+        }
+
+        const amdfPitch = amdf(window);
+        if (isPlausiblePitch(amdfPitch, expectedHz)) {
+            amdfMeasured.push(amdfPitch);
         }
     }
 
-    return median(measured);
+    const yinHz = median(yinMeasured);
+    const amdfHz = median(amdfMeasured);
+    return {
+        yinHz,
+        amdfHz,
+    };
+}
+
+function measurePitch(outputPath: string, expectedHz: number, tempDir: string): PitchMethodMeasurement {
+    const wavPath = path.join(tempDir, `${path.basename(outputPath)}.verify.wav`);
+    decodeAudioToWav(outputPath, wavPath);
+    const wav = readWavFloat32(wavPath);
+    return measurePitchMethods(wav, expectedHz);
 }
 
 function measureDuration(outputPath: string, tempDir: string): number {
@@ -723,14 +751,31 @@ function roundNumber(value: number | null, digits = 4): number | null {
     return Number(value.toFixed(digits));
 }
 
+function absoluteDifference(left: number | null, right: number | null): number | null {
+    if (left === null || right === null || !Number.isFinite(left) || !Number.isFinite(right)) {
+        return null;
+    }
+    return Math.abs(left - right);
+}
+
 function buildMissingEntry(target: TargetNote): ManifestEntry {
     return {
         outputNoteName: target.outputNoteName,
         midi: target.midi,
         expectedHz: roundNumber(target.expectedHz)!,
+        preCorrectionYinHz: null,
+        preCorrectionYinCentsError: null,
+        preCorrectionAmdfHz: null,
+        preCorrectionAmdfCentsError: null,
+        preCorrectionMethodAgreementCents: null,
         preCorrectionMeasuredHz: null,
         preCorrectionCentsError: null,
         pitchCorrectionCents: null,
+        finalYinHz: null,
+        finalYinCentsError: null,
+        finalAmdfHz: null,
+        finalAmdfCentsError: null,
+        finalMethodAgreementCents: null,
         measuredHz: null,
         centsError: null,
         status: 'missing',
@@ -749,6 +794,9 @@ function buildMissingEntry(target: TargetNote): ManifestEntry {
         nextRegionStartSec: null,
         rejectedForNextRegion: false,
         rejectedForShortSource: false,
+        targetOnsetOffsetSec: TARGET_ONSET_OFFSET_SEC,
+        preAlignmentOnsetOffsetSec: null,
+        onsetAlignmentShiftSec: null,
         measuredDurationSec: null,
         onsetOffsetSec: null,
         onsetStatus: null,
@@ -773,16 +821,102 @@ function writeReport(entries: ManifestEntry[], targets: TargetNote[]): void {
     const missing = entries.filter((entry) => entry.status === 'missing');
     const warnings = entries.filter((entry) => entry.status === 'warn');
     const failures = entries.filter((entry) => entry.status === 'fail');
+    const tableHeaders = [
+        'Note',
+        'MIDI',
+        'Status',
+        'Expected Hz',
+        'Source YIN Hz',
+        'Source YIN Cents',
+        'Source AMDF Hz',
+        'Source AMDF Cents',
+        'Source Agreement Cents',
+        'Source Primary Hz',
+        'Source Primary Cents',
+        'Correction Cents',
+        'Final YIN Hz',
+        'Final YIN Cents',
+        'Final AMDF Hz',
+        'Final AMDF Cents',
+        'Final Agreement Cents',
+        'Final Primary Hz',
+        'Final Primary Cents',
+        'Source File',
+        'String',
+        'Fret',
+        'Range Index',
+        'Region Start',
+        'Region End',
+        'Segment Start',
+        'Segment End',
+        'Fixed Duration',
+        'Source Duration',
+        'Next Region Start',
+        'Rejected Next Region',
+        'Rejected Short Source',
+        'Target Onset',
+        'Pre-Alignment Onset',
+        'Onset Shift',
+        'Measured Duration',
+        'Onset Offset',
+        'Onset Status',
+        'Validation Message',
+        'Output File',
+    ];
+    const numericColumns = new Set([
+        'MIDI',
+        'Expected Hz',
+        'Source YIN Hz',
+        'Source YIN Cents',
+        'Source AMDF Hz',
+        'Source AMDF Cents',
+        'Source Agreement Cents',
+        'Source Primary Hz',
+        'Source Primary Cents',
+        'Correction Cents',
+        'Final YIN Hz',
+        'Final YIN Cents',
+        'Final AMDF Hz',
+        'Final AMDF Cents',
+        'Final Agreement Cents',
+        'Final Primary Hz',
+        'Final Primary Cents',
+        'Fret',
+        'Range Index',
+        'Region Start',
+        'Region End',
+        'Segment Start',
+        'Segment End',
+        'Fixed Duration',
+        'Source Duration',
+        'Next Region Start',
+        'Target Onset',
+        'Pre-Alignment Onset',
+        'Onset Shift',
+        'Measured Duration',
+        'Onset Offset',
+    ]);
+    const tableDivider = tableHeaders.map((header) => numericColumns.has(header) ? '---:' : '---');
 
     const rows = entries.map((entry) => {
-        return [
+        const values = [
             entry.outputNoteName,
             entry.midi,
             entry.status,
             entry.expectedHz,
+            entry.preCorrectionYinHz,
+            entry.preCorrectionYinCentsError,
+            entry.preCorrectionAmdfHz,
+            entry.preCorrectionAmdfCentsError,
+            entry.preCorrectionMethodAgreementCents,
             entry.preCorrectionMeasuredHz,
             entry.preCorrectionCentsError,
             entry.pitchCorrectionCents,
+            entry.finalYinHz,
+            entry.finalYinCentsError,
+            entry.finalAmdfHz,
+            entry.finalAmdfCentsError,
+            entry.finalMethodAgreementCents,
             entry.measuredHz,
             entry.centsError,
             entry.sourceFile,
@@ -798,12 +932,16 @@ function writeReport(entries: ManifestEntry[], targets: TargetNote[]): void {
             entry.nextRegionStartSec,
             entry.rejectedForNextRegion,
             entry.rejectedForShortSource,
+            entry.targetOnsetOffsetSec,
+            entry.preAlignmentOnsetOffsetSec,
+            entry.onsetAlignmentShiftSec,
             entry.measuredDurationSec,
             entry.onsetOffsetSec,
             entry.onsetStatus,
             entry.validationMessage,
             entry.outputFile,
-        ].map(markdownTableValue).join(' | ');
+        ];
+        return `| ${values.map(markdownTableValue).join(' | ')} |`;
     });
 
     const lines = [
@@ -817,8 +955,8 @@ function writeReport(entries: ManifestEntry[], targets: TargetNote[]): void {
         `- Warnings: ${warnings.length}${warnings.length ? ` (${warnings.map((entry) => entry.outputNoteName).join(', ')})` : ''}`,
         `- Failures: ${failures.length}${failures.length ? ` (${failures.map((entry) => entry.outputNoteName).join(', ')})` : ''}`,
         '',
-        '| Note | MIDI | Status | Expected Hz | Source Hz | Source Cents | Correction Cents | Final Hz | Final Cents | Source File | String | Fret | Range Index | Region Start | Region End | Segment Start | Segment End | Fixed Duration | Source Duration | Next Region Start | Rejected Next Region | Rejected Short Source | Measured Duration | Onset Offset | Onset Status | Validation Message | Output File |',
-        '| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- | --- | ---: | ---: | --- | --- | --- |',
+        `| ${tableHeaders.join(' | ')} |`,
+        `| ${tableDivider.join(' | ')} |`,
         ...rows,
         '',
     ];
@@ -857,6 +995,7 @@ async function buildAll(dryRun: boolean): Promise<void> {
     }
 
     mkdirSync(OUTPUT_DIR, { recursive: true });
+    mkdirSync(ARTIFACTS_DIR, { recursive: true });
     for (const existing of readdirSync(OUTPUT_DIR)) {
         if (existing.endsWith(`.${OUTPUT_EXT}`)) {
             rmSync(path.join(OUTPUT_DIR, existing));
@@ -911,9 +1050,19 @@ async function buildAll(dryRun: boolean): Promise<void> {
                     outputNoteName: target.outputNoteName,
                     midi: target.midi,
                     expectedHz: roundNumber(target.expectedHz)!,
+                    preCorrectionYinHz: null,
+                    preCorrectionYinCentsError: null,
+                    preCorrectionAmdfHz: null,
+                    preCorrectionAmdfCentsError: null,
+                    preCorrectionMethodAgreementCents: null,
                     preCorrectionMeasuredHz: null,
                     preCorrectionCentsError: null,
                     pitchCorrectionCents: null,
+                    finalYinHz: null,
+                    finalYinCentsError: null,
+                    finalAmdfHz: null,
+                    finalAmdfCentsError: null,
+                    finalMethodAgreementCents: null,
                     measuredHz: null,
                     centsError: null,
                     status: 'fail',
@@ -932,6 +1081,9 @@ async function buildAll(dryRun: boolean): Promise<void> {
                     nextRegionStartSec: roundNumber(nextRegion?.startSec ?? null),
                     rejectedForNextRegion,
                     rejectedForShortSource,
+                    targetOnsetOffsetSec: TARGET_ONSET_OFFSET_SEC,
+                    preAlignmentOnsetOffsetSec: null,
+                    onsetAlignmentShiftSec: null,
                     measuredDurationSec: null,
                     onsetOffsetSec: null,
                     onsetStatus: null,
@@ -944,26 +1096,45 @@ async function buildAll(dryRun: boolean): Promise<void> {
             const relativeOutputFile = `static/notes/guitar/${target.outputNoteName}_${MEDIUM_SUFFIX}.${OUTPUT_EXT}`;
             const outputPath = path.join(REPO_ROOT, relativeOutputFile);
             const segmentWavPath = path.join(tempDir, `${target.outputNoteName}.segment.wav`);
+            const alignedSegmentWavPath = path.join(tempDir, `${target.outputNoteName}.aligned.segment.wav`);
             exportSegmentToWav(candidate.source, segmentWavPath, startSec, endSec);
 
-            const preCorrectionMeasuredHz = measurePitch(segmentWavPath, target.expectedHz, tempDir);
-            const preCorrectionError = preCorrectionMeasuredHz === null
+            const preAlignmentOnsetOffsetSec = measureFirstOnset(segmentWavPath, tempDir);
+            const onsetAlignmentShiftSec = alignWavOnset(segmentWavPath, alignedSegmentWavPath, preAlignmentOnsetOffsetSec);
+
+            const preCorrectionMeasurement = measurePitch(alignedSegmentWavPath, target.expectedHz, tempDir);
+            const preCorrectionMeasuredHz = preCorrectionMeasurement.yinHz;
+            const preCorrectionYinError = preCorrectionMeasurement.yinHz === null
                 ? null
-                : centsError(preCorrectionMeasuredHz, target.expectedHz);
+                : centsError(preCorrectionMeasurement.yinHz, target.expectedHz);
+            const preCorrectionAmdfError = preCorrectionMeasurement.amdfHz === null
+                ? null
+                : centsError(preCorrectionMeasurement.amdfHz, target.expectedHz);
+            const preCorrectionMethodAgreementCents = absoluteDifference(preCorrectionYinError, preCorrectionAmdfError);
+            const preCorrectionError = preCorrectionYinError;
             let pitchRatio = preCorrectionMeasuredHz === null ? 1 : target.expectedHz / preCorrectionMeasuredHz;
             let pitchCorrectionCents = preCorrectionError === null ? null : -preCorrectionError;
 
-            exportCorrectedMp3(segmentWavPath, outputPath, pitchRatio);
-            let measuredHz = measurePitch(outputPath, target.expectedHz, tempDir);
+            exportCorrectedMp3(alignedSegmentWavPath, outputPath, pitchRatio);
+            let finalMeasurement = measurePitch(outputPath, target.expectedHz, tempDir);
+            let measuredHz = finalMeasurement.yinHz;
             let error = measuredHz === null ? null : centsError(measuredHz, target.expectedHz);
 
             if (statusForCents(error) === 'fail' && measuredHz !== null && preCorrectionMeasuredHz !== null) {
                 pitchRatio *= target.expectedHz / measuredHz;
                 pitchCorrectionCents = 1200 * Math.log2(pitchRatio);
-                exportCorrectedMp3(segmentWavPath, outputPath, pitchRatio);
-                measuredHz = measurePitch(outputPath, target.expectedHz, tempDir);
+                exportCorrectedMp3(alignedSegmentWavPath, outputPath, pitchRatio);
+                finalMeasurement = measurePitch(outputPath, target.expectedHz, tempDir);
+                measuredHz = finalMeasurement.yinHz;
                 error = measuredHz === null ? null : centsError(measuredHz, target.expectedHz);
             }
+            const finalYinError = finalMeasurement.yinHz === null
+                ? null
+                : centsError(finalMeasurement.yinHz, target.expectedHz);
+            const finalAmdfError = finalMeasurement.amdfHz === null
+                ? null
+                : centsError(finalMeasurement.amdfHz, target.expectedHz);
+            const finalMethodAgreementCents = absoluteDifference(finalYinError, finalAmdfError);
 
             const measuredDurationSec = measureDuration(outputPath, tempDir);
             const onsetOffsetSec = measureFirstOnset(outputPath, tempDir);
@@ -994,9 +1165,19 @@ async function buildAll(dryRun: boolean): Promise<void> {
                 outputNoteName: target.outputNoteName,
                 midi: target.midi,
                 expectedHz: roundNumber(target.expectedHz)!,
+                preCorrectionYinHz: roundNumber(preCorrectionMeasurement.yinHz),
+                preCorrectionYinCentsError: roundNumber(preCorrectionYinError),
+                preCorrectionAmdfHz: roundNumber(preCorrectionMeasurement.amdfHz),
+                preCorrectionAmdfCentsError: roundNumber(preCorrectionAmdfError),
+                preCorrectionMethodAgreementCents: roundNumber(preCorrectionMethodAgreementCents),
                 preCorrectionMeasuredHz: roundNumber(preCorrectionMeasuredHz),
                 preCorrectionCentsError: roundNumber(preCorrectionError),
                 pitchCorrectionCents: roundNumber(pitchCorrectionCents),
+                finalYinHz: roundNumber(finalMeasurement.yinHz),
+                finalYinCentsError: roundNumber(finalYinError),
+                finalAmdfHz: roundNumber(finalMeasurement.amdfHz),
+                finalAmdfCentsError: roundNumber(finalAmdfError),
+                finalMethodAgreementCents: roundNumber(finalMethodAgreementCents),
                 measuredHz: roundNumber(measuredHz),
                 centsError: roundNumber(error),
                 status,
@@ -1015,6 +1196,9 @@ async function buildAll(dryRun: boolean): Promise<void> {
                 nextRegionStartSec: roundNumber(nextRegion?.startSec ?? null),
                 rejectedForNextRegion,
                 rejectedForShortSource,
+                targetOnsetOffsetSec: TARGET_ONSET_OFFSET_SEC,
+                preAlignmentOnsetOffsetSec: roundNumber(preAlignmentOnsetOffsetSec),
+                onsetAlignmentShiftSec: roundNumber(onsetAlignmentShiftSec),
                 measuredDurationSec: roundNumber(measuredDurationSec),
                 onsetOffsetSec: roundNumber(onsetOffsetSec),
                 onsetStatus,
