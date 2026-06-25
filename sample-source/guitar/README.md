@@ -3,7 +3,8 @@
 This directory contains the repeatable, build-time-only pipeline for extracting
 single-note guitar samples from University of Iowa Musical Instrument Samples
 range files. The generated app assets are written to `static/notes/guitar/`, but
-the app does not load them yet.
+the app does not load them yet. Guitar chord assets are generated from those
+note assets into `static/chords/guitar/` and `static/chords/guitar-strummed/`.
 
 ## Raw Source Files
 
@@ -51,7 +52,7 @@ npm run build:guitar-samples
 
 The command:
 
-- Derives target pitches from existing piano note assets in `static/notes/`.
+- Derives target pitches from existing piano note assets in `static/notes/piano/`.
 - Parses local range AIFF files in `sample-source/guitar/raw/`.
 - Selects exact MIDI matches from `mf` files using lowest guitar fret.
 - Segments each selected range file into note events.
@@ -59,10 +60,24 @@ The command:
   filter when needed, then validates the final MP3 against A4=440 equal
   temperament.
 - Writes accepted MP3 samples to `static/notes/guitar/`.
-- Regenerates `guitar-samples.manifest.json` and `guitar-pitch-report.md`.
+- Regenerates `artifacts/samples/manifest.json` and `artifacts/samples/report.md`.
 
 For mapping-only validation without writing outputs:
 
 ```sh
 node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON sample-source/guitar/build-guitar-samples.ts --dry-run
 ```
+
+To regenerate guitar chord assets from the generated note samples:
+
+```sh
+npm run build:guitar-chords
+```
+
+The chord command:
+
+- Reads `CHORD_DEFINITIONS` from `src/ts/data.ts`.
+- Mixes matching `static/notes/guitar/{note}_medium.mp3` files with ffmpeg.
+- Writes simultaneous guitar chords to `static/chords/guitar/`.
+- Writes low-to-high strummed guitar chords to `static/chords/guitar-strummed/`.
+- Regenerates `artifacts/chords/manifest.json` and `artifacts/chords/report.md`.

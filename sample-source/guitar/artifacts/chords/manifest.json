@@ -1,0 +1,931 @@
+{
+  "command": "npm run build:guitar-chords",
+  "sourceNoteDir": "static/notes/guitar",
+  "generatedAt": "2026-06-24T23:51:34.238Z",
+  "entries": [
+    {
+      "chordName": "red",
+      "display": "Red",
+      "chord": "C",
+      "notes": [
+        "C4",
+        "E4",
+        "G4"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/c4_medium.mp3",
+        "static/notes/guitar/e4_medium.mp3",
+        "static/notes/guitar/g4_medium.mp3"
+      ],
+      "variant": "guitar",
+      "variantDescription": "Guitar chord mix with aligned note starts, EBU loudness normalization, and limiting.",
+      "inputDelayStepMs": 0,
+      "inputDelayMs": [
+        0,
+        0,
+        0
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar/c4e4g4_red.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "yellow",
+      "display": "Yellow",
+      "chord": "F/C",
+      "notes": [
+        "C4",
+        "F4",
+        "A4"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/c4_medium.mp3",
+        "static/notes/guitar/f4_medium.mp3",
+        "static/notes/guitar/a4_medium.mp3"
+      ],
+      "variant": "guitar",
+      "variantDescription": "Guitar chord mix with aligned note starts, EBU loudness normalization, and limiting.",
+      "inputDelayStepMs": 0,
+      "inputDelayMs": [
+        0,
+        0,
+        0
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar/c4f4a4_yellow.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "blue",
+      "display": "Blue",
+      "chord": "G/B",
+      "notes": [
+        "B3",
+        "D4",
+        "G4"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/h3_medium.mp3",
+        "static/notes/guitar/d4_medium.mp3",
+        "static/notes/guitar/g4_medium.mp3"
+      ],
+      "variant": "guitar",
+      "variantDescription": "Guitar chord mix with aligned note starts, EBU loudness normalization, and limiting.",
+      "inputDelayStepMs": 0,
+      "inputDelayMs": [
+        0,
+        0,
+        0
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar/h3d4g4_blue.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "black",
+      "display": "Black",
+      "chord": "F/A",
+      "notes": [
+        "A3",
+        "C4",
+        "F4"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/a3_medium.mp3",
+        "static/notes/guitar/c4_medium.mp3",
+        "static/notes/guitar/f4_medium.mp3"
+      ],
+      "variant": "guitar",
+      "variantDescription": "Guitar chord mix with aligned note starts, EBU loudness normalization, and limiting.",
+      "inputDelayStepMs": 0,
+      "inputDelayMs": [
+        0,
+        0,
+        0
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar/a3c4f4_black.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "green",
+      "display": "Green",
+      "chord": "G/D",
+      "notes": [
+        "D4",
+        "G4",
+        "B4"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/d4_medium.mp3",
+        "static/notes/guitar/g4_medium.mp3",
+        "static/notes/guitar/h4_medium.mp3"
+      ],
+      "variant": "guitar",
+      "variantDescription": "Guitar chord mix with aligned note starts, EBU loudness normalization, and limiting.",
+      "inputDelayStepMs": 0,
+      "inputDelayMs": [
+        0,
+        0,
+        0
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar/d4g4h4_green.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "orange",
+      "display": "Orange",
+      "chord": "C/E",
+      "notes": [
+        "E4",
+        "G4",
+        "C5"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/e4_medium.mp3",
+        "static/notes/guitar/g4_medium.mp3",
+        "static/notes/guitar/c5_medium.mp3"
+      ],
+      "variant": "guitar",
+      "variantDescription": "Guitar chord mix with aligned note starts, EBU loudness normalization, and limiting.",
+      "inputDelayStepMs": 0,
+      "inputDelayMs": [
+        0,
+        0,
+        0
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar/e4g4c5_orange.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "purple",
+      "display": "Purple",
+      "chord": "F",
+      "notes": [
+        "F4",
+        "A4",
+        "C5"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/f4_medium.mp3",
+        "static/notes/guitar/a4_medium.mp3",
+        "static/notes/guitar/c5_medium.mp3"
+      ],
+      "variant": "guitar",
+      "variantDescription": "Guitar chord mix with aligned note starts, EBU loudness normalization, and limiting.",
+      "inputDelayStepMs": 0,
+      "inputDelayMs": [
+        0,
+        0,
+        0
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar/f4a4c5_purple.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "pink",
+      "display": "Pink",
+      "chord": "G",
+      "notes": [
+        "G4",
+        "B4",
+        "D5"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/g4_medium.mp3",
+        "static/notes/guitar/h4_medium.mp3",
+        "static/notes/guitar/d5_medium.mp3"
+      ],
+      "variant": "guitar",
+      "variantDescription": "Guitar chord mix with aligned note starts, EBU loudness normalization, and limiting.",
+      "inputDelayStepMs": 0,
+      "inputDelayMs": [
+        0,
+        0,
+        0
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar/g4h4d5_pink.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "brown",
+      "display": "Brown",
+      "chord": "C/G",
+      "notes": [
+        "G4",
+        "C5",
+        "E5"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/g4_medium.mp3",
+        "static/notes/guitar/c5_medium.mp3",
+        "static/notes/guitar/e5_medium.mp3"
+      ],
+      "variant": "guitar",
+      "variantDescription": "Guitar chord mix with aligned note starts, EBU loudness normalization, and limiting.",
+      "inputDelayStepMs": 0,
+      "inputDelayMs": [
+        0,
+        0,
+        0
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar/g4c5e5_brown.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "gray",
+      "display": "Gray",
+      "chord": "A",
+      "notes": [
+        "A3",
+        "C#4",
+        "E4"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/a3_medium.mp3",
+        "static/notes/guitar/cs4_medium.mp3",
+        "static/notes/guitar/e4_medium.mp3"
+      ],
+      "variant": "guitar",
+      "variantDescription": "Guitar chord mix with aligned note starts, EBU loudness normalization, and limiting.",
+      "inputDelayStepMs": 0,
+      "inputDelayMs": [
+        0,
+        0,
+        0
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar/a3cs4e4_gray.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "tan",
+      "display": "Tan",
+      "chord": "D",
+      "notes": [
+        "D4",
+        "F#4",
+        "A4"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/d4_medium.mp3",
+        "static/notes/guitar/fs4_medium.mp3",
+        "static/notes/guitar/a4_medium.mp3"
+      ],
+      "variant": "guitar",
+      "variantDescription": "Guitar chord mix with aligned note starts, EBU loudness normalization, and limiting.",
+      "inputDelayStepMs": 0,
+      "inputDelayMs": [
+        0,
+        0,
+        0
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar/d4fs4a4_tan.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "lightgreen",
+      "display": "Light Green",
+      "chord": "E",
+      "notes": [
+        "E4",
+        "G#4",
+        "B4"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/e4_medium.mp3",
+        "static/notes/guitar/gs4_medium.mp3",
+        "static/notes/guitar/h4_medium.mp3"
+      ],
+      "variant": "guitar",
+      "variantDescription": "Guitar chord mix with aligned note starts, EBU loudness normalization, and limiting.",
+      "inputDelayStepMs": 0,
+      "inputDelayMs": [
+        0,
+        0,
+        0
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar/e4gs4h4_lightgreen.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "lightpurple",
+      "display": "Light Purple",
+      "chord": "Bb",
+      "notes": [
+        "Bb3",
+        "D4",
+        "F4"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/as3_medium.mp3",
+        "static/notes/guitar/d4_medium.mp3",
+        "static/notes/guitar/f4_medium.mp3"
+      ],
+      "variant": "guitar",
+      "variantDescription": "Guitar chord mix with aligned note starts, EBU loudness normalization, and limiting.",
+      "inputDelayStepMs": 0,
+      "inputDelayMs": [
+        0,
+        0,
+        0
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar/as3d4f4_lightpurple.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "skyblue",
+      "display": "Sky Blue",
+      "chord": "Eb",
+      "notes": [
+        "Eb4",
+        "G4",
+        "Bb4"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/ds4_medium.mp3",
+        "static/notes/guitar/g4_medium.mp3",
+        "static/notes/guitar/as4_medium.mp3"
+      ],
+      "variant": "guitar",
+      "variantDescription": "Guitar chord mix with aligned note starts, EBU loudness normalization, and limiting.",
+      "inputDelayStepMs": 0,
+      "inputDelayMs": [
+        0,
+        0,
+        0
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar/ds4g4as4_skyblue.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "red",
+      "display": "Red",
+      "chord": "C",
+      "notes": [
+        "C4",
+        "E4",
+        "G4"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/c4_medium.mp3",
+        "static/notes/guitar/e4_medium.mp3",
+        "static/notes/guitar/g4_medium.mp3"
+      ],
+      "variant": "guitar-strummed",
+      "variantDescription": "Guitar chord mix with note starts intentionally staggered low-to-high by 100 ms per note.",
+      "inputDelayStepMs": 100,
+      "inputDelayMs": [
+        0,
+        100,
+        200
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=100:all=1[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=200:all=1[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar-strummed/c4e4g4_red.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "yellow",
+      "display": "Yellow",
+      "chord": "F/C",
+      "notes": [
+        "C4",
+        "F4",
+        "A4"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/c4_medium.mp3",
+        "static/notes/guitar/f4_medium.mp3",
+        "static/notes/guitar/a4_medium.mp3"
+      ],
+      "variant": "guitar-strummed",
+      "variantDescription": "Guitar chord mix with note starts intentionally staggered low-to-high by 100 ms per note.",
+      "inputDelayStepMs": 100,
+      "inputDelayMs": [
+        0,
+        100,
+        200
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=100:all=1[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=200:all=1[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar-strummed/c4f4a4_yellow.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "blue",
+      "display": "Blue",
+      "chord": "G/B",
+      "notes": [
+        "B3",
+        "D4",
+        "G4"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/h3_medium.mp3",
+        "static/notes/guitar/d4_medium.mp3",
+        "static/notes/guitar/g4_medium.mp3"
+      ],
+      "variant": "guitar-strummed",
+      "variantDescription": "Guitar chord mix with note starts intentionally staggered low-to-high by 100 ms per note.",
+      "inputDelayStepMs": 100,
+      "inputDelayMs": [
+        0,
+        100,
+        200
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=100:all=1[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=200:all=1[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar-strummed/h3d4g4_blue.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "black",
+      "display": "Black",
+      "chord": "F/A",
+      "notes": [
+        "A3",
+        "C4",
+        "F4"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/a3_medium.mp3",
+        "static/notes/guitar/c4_medium.mp3",
+        "static/notes/guitar/f4_medium.mp3"
+      ],
+      "variant": "guitar-strummed",
+      "variantDescription": "Guitar chord mix with note starts intentionally staggered low-to-high by 100 ms per note.",
+      "inputDelayStepMs": 100,
+      "inputDelayMs": [
+        0,
+        100,
+        200
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=100:all=1[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=200:all=1[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar-strummed/a3c4f4_black.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "green",
+      "display": "Green",
+      "chord": "G/D",
+      "notes": [
+        "D4",
+        "G4",
+        "B4"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/d4_medium.mp3",
+        "static/notes/guitar/g4_medium.mp3",
+        "static/notes/guitar/h4_medium.mp3"
+      ],
+      "variant": "guitar-strummed",
+      "variantDescription": "Guitar chord mix with note starts intentionally staggered low-to-high by 100 ms per note.",
+      "inputDelayStepMs": 100,
+      "inputDelayMs": [
+        0,
+        100,
+        200
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=100:all=1[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=200:all=1[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar-strummed/d4g4h4_green.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "orange",
+      "display": "Orange",
+      "chord": "C/E",
+      "notes": [
+        "E4",
+        "G4",
+        "C5"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/e4_medium.mp3",
+        "static/notes/guitar/g4_medium.mp3",
+        "static/notes/guitar/c5_medium.mp3"
+      ],
+      "variant": "guitar-strummed",
+      "variantDescription": "Guitar chord mix with note starts intentionally staggered low-to-high by 100 ms per note.",
+      "inputDelayStepMs": 100,
+      "inputDelayMs": [
+        0,
+        100,
+        200
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=100:all=1[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=200:all=1[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar-strummed/e4g4c5_orange.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "purple",
+      "display": "Purple",
+      "chord": "F",
+      "notes": [
+        "F4",
+        "A4",
+        "C5"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/f4_medium.mp3",
+        "static/notes/guitar/a4_medium.mp3",
+        "static/notes/guitar/c5_medium.mp3"
+      ],
+      "variant": "guitar-strummed",
+      "variantDescription": "Guitar chord mix with note starts intentionally staggered low-to-high by 100 ms per note.",
+      "inputDelayStepMs": 100,
+      "inputDelayMs": [
+        0,
+        100,
+        200
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=100:all=1[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=200:all=1[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar-strummed/f4a4c5_purple.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "pink",
+      "display": "Pink",
+      "chord": "G",
+      "notes": [
+        "G4",
+        "B4",
+        "D5"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/g4_medium.mp3",
+        "static/notes/guitar/h4_medium.mp3",
+        "static/notes/guitar/d5_medium.mp3"
+      ],
+      "variant": "guitar-strummed",
+      "variantDescription": "Guitar chord mix with note starts intentionally staggered low-to-high by 100 ms per note.",
+      "inputDelayStepMs": 100,
+      "inputDelayMs": [
+        0,
+        100,
+        200
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=100:all=1[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=200:all=1[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar-strummed/g4h4d5_pink.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "brown",
+      "display": "Brown",
+      "chord": "C/G",
+      "notes": [
+        "G4",
+        "C5",
+        "E5"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/g4_medium.mp3",
+        "static/notes/guitar/c5_medium.mp3",
+        "static/notes/guitar/e5_medium.mp3"
+      ],
+      "variant": "guitar-strummed",
+      "variantDescription": "Guitar chord mix with note starts intentionally staggered low-to-high by 100 ms per note.",
+      "inputDelayStepMs": 100,
+      "inputDelayMs": [
+        0,
+        100,
+        200
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=100:all=1[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=200:all=1[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar-strummed/g4c5e5_brown.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "gray",
+      "display": "Gray",
+      "chord": "A",
+      "notes": [
+        "A3",
+        "C#4",
+        "E4"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/a3_medium.mp3",
+        "static/notes/guitar/cs4_medium.mp3",
+        "static/notes/guitar/e4_medium.mp3"
+      ],
+      "variant": "guitar-strummed",
+      "variantDescription": "Guitar chord mix with note starts intentionally staggered low-to-high by 100 ms per note.",
+      "inputDelayStepMs": 100,
+      "inputDelayMs": [
+        0,
+        100,
+        200
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=100:all=1[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=200:all=1[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar-strummed/a3cs4e4_gray.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "tan",
+      "display": "Tan",
+      "chord": "D",
+      "notes": [
+        "D4",
+        "F#4",
+        "A4"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/d4_medium.mp3",
+        "static/notes/guitar/fs4_medium.mp3",
+        "static/notes/guitar/a4_medium.mp3"
+      ],
+      "variant": "guitar-strummed",
+      "variantDescription": "Guitar chord mix with note starts intentionally staggered low-to-high by 100 ms per note.",
+      "inputDelayStepMs": 100,
+      "inputDelayMs": [
+        0,
+        100,
+        200
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=100:all=1[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=200:all=1[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar-strummed/d4fs4a4_tan.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "lightgreen",
+      "display": "Light Green",
+      "chord": "E",
+      "notes": [
+        "E4",
+        "G#4",
+        "B4"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/e4_medium.mp3",
+        "static/notes/guitar/gs4_medium.mp3",
+        "static/notes/guitar/h4_medium.mp3"
+      ],
+      "variant": "guitar-strummed",
+      "variantDescription": "Guitar chord mix with note starts intentionally staggered low-to-high by 100 ms per note.",
+      "inputDelayStepMs": 100,
+      "inputDelayMs": [
+        0,
+        100,
+        200
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=100:all=1[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=200:all=1[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar-strummed/e4gs4h4_lightgreen.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "lightpurple",
+      "display": "Light Purple",
+      "chord": "Bb",
+      "notes": [
+        "Bb3",
+        "D4",
+        "F4"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/as3_medium.mp3",
+        "static/notes/guitar/d4_medium.mp3",
+        "static/notes/guitar/f4_medium.mp3"
+      ],
+      "variant": "guitar-strummed",
+      "variantDescription": "Guitar chord mix with note starts intentionally staggered low-to-high by 100 ms per note.",
+      "inputDelayStepMs": 100,
+      "inputDelayMs": [
+        0,
+        100,
+        200
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=100:all=1[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=200:all=1[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar-strummed/as3d4f4_lightpurple.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    },
+    {
+      "chordName": "skyblue",
+      "display": "Sky Blue",
+      "chord": "Eb",
+      "notes": [
+        "Eb4",
+        "G4",
+        "Bb4"
+      ],
+      "sourceFiles": [
+        "static/notes/guitar/ds4_medium.mp3",
+        "static/notes/guitar/g4_medium.mp3",
+        "static/notes/guitar/as4_medium.mp3"
+      ],
+      "variant": "guitar-strummed",
+      "variantDescription": "Guitar chord mix with note starts intentionally staggered low-to-high by 100 ms per note.",
+      "inputDelayStepMs": 100,
+      "inputDelayMs": [
+        0,
+        100,
+        200
+      ],
+      "targetDurationSec": 2,
+      "fadeOutSec": 0.06,
+      "filterGraph": "[0:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72[n0];[1:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=100:all=1[n1];[2:a]atrim=start=0,asetpts=PTS-STARTPTS,volume=0.72,adelay=200:all=1[n2];[n0][n1][n2]amix=inputs=3:duration=longest:normalize=0,atrim=duration=2.000,asetpts=PTS-STARTPTS,afade=t=out:st=1.940:d=0.060,loudnorm=I=-18:TP=-1.5:LRA=11,alimiter=limit=0.95[out]",
+      "outputFile": "static/chords/guitar-strummed/ds4g4as4_skyblue.mp3",
+      "ffprobe": {
+        "durationSec": 2,
+        "codecName": "mp3",
+        "sampleRate": 44100,
+        "channels": 1
+      }
+    }
+  ]
+}

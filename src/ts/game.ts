@@ -1,6 +1,6 @@
 import { CHORDS_TONE, FIRST_BLACK_INDEX } from './data';
 import { AudioFileInfo } from './types';
-import { randomElem, randomDuration, getCurrentTimestamp } from './utils';
+import { randomElem, getCurrentTimestamp } from './utils';
 import {
     STATE, getCurrentProfile, getCurrentTargetNumber,
     getCurrentSessionHistory, saveState, saveSessionHistory,
