@@ -6,6 +6,7 @@ import android.content.res.AssetManager
 import android.media.MediaPlayer
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowInsetsController
@@ -65,6 +66,7 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -88,6 +90,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.json.JSONArray
 import org.json.JSONObject
+import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
@@ -171,20 +174,57 @@ private val Chords = listOf(
     ChordDefinition("skyblue", "Sky Blue", "Eb", listOf("Eb", "G", "Bb"), Color(0xFF87CEFA), listOf("dsgas_skyblue_short.mp3", "dsgas_skyblue_medium.mp3", "dsgas_skyblue_long.mp3")),
 )
 
-private class TrainerStore(context: Context) {
+private val AvatarOptions = listOf(
+    "🐶", "🐱", "🐭", "🐹", "🐰",
+    "🦊", "🐻", "🐼", "🐨", "🐯",
+    "🦁", "🐮", "🐷", "🐸", "🐵",
+    "🐧", "🐦", "🦉", "🐢", "🐙",
+)
+
+private fun defaultProfileName(context: Context): String {
+    val deviceName = runCatching {
+        Settings.Global.getString(context.contentResolver, Settings.Global.DEVICE_NAME)
+    }.getOrNull()?.trim().orEmpty()
+    if (deviceName.isNotBlank()) {
+        val firstName = deviceName.substringBefore("'s").substringBefore("’s").trim()
+        return firstName.takeIf { it.isNotBlank() } ?: deviceName
+    }
+    return Build.MODEL.replace('_', ' ').takeIf { it.isNotBlank() } ?: "Player"
+}
+
+private fun Modifier.tapTargetOverlay(show: Boolean, color: Color = Color(0xFFFF00D4)): Modifier {
+    return if (show) {
+        this
+            .background(color.copy(alpha = 0.14f))
+            .border(2.dp, color)
+    } else {
+        this
+    }
+}
+
+private class TrainerStore(private val context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("bsharp_native_state", Context.MODE_PRIVATE)
 
-    fun profileName(): String = prefs.getString("profile_name", "Guest") ?: "Guest"
+    fun profileName(): String {
+        val saved = prefs.getString("profile_name", null)?.trim().orEmpty()
+        return saved.takeIf { it.isNotBlank() && it != "Guest" } ?: defaultProfileName(context)
+    }
+    fun avatar(): String = prefs.getString("avatar", AvatarOptions.first()) ?: AvatarOptions.first()
     fun levelIndex(): Int = prefs.getInt("level_index", 1).coerceIn(1, Chords.lastIndex)
     fun correct(): Int = prefs.getInt("correct", 0)
     fun attempts(): Int = prefs.getInt("attempts", 0)
     fun target(): Int = prefs.getInt("target", 25).coerceAtLeast(1)
     fun preferTextLabels(): Boolean = prefs.getBoolean("prefer_text_labels", false)
     fun describeAnswerAfterResult(): Boolean = prefs.getBoolean("describe_answer_after_result", false)
+    fun autoAdvanceAfterAnswer(): Boolean = prefs.getBoolean("auto_advance_after_answer", true)
+    fun showTapTargets(): Boolean = prefs.getBoolean("show_tap_targets", false)
     fun adaptiveMode(): Boolean = prefs.getBoolean("adaptive_mode", false)
 
-    fun saveProfileName(value: String) {
-        prefs.edit().putString("profile_name", value.ifBlank { "Guest" }).apply()
+    fun saveProfile(value: String, avatar: String) {
+        prefs.edit()
+            .putString("profile_name", value.ifBlank { defaultProfileName(context) })
+            .putString("avatar", avatar.takeIf { it in AvatarOptions } ?: AvatarOptions.first())
+            .apply()
     }
 
     fun saveLevel(index: Int) {
@@ -199,12 +239,16 @@ private class TrainerStore(context: Context) {
         target: Int,
         preferTextLabels: Boolean,
         describeAnswerAfterResult: Boolean,
+        autoAdvanceAfterAnswer: Boolean,
+        showTapTargets: Boolean,
         adaptiveMode: Boolean,
     ) {
         prefs.edit()
             .putInt("target", target.coerceAtLeast(1))
             .putBoolean("prefer_text_labels", preferTextLabels)
             .putBoolean("describe_answer_after_result", describeAnswerAfterResult)
+            .putBoolean("auto_advance_after_answer", autoAdvanceAfterAnswer)
+            .putBoolean("show_tap_targets", showTapTargets)
             .putBoolean("adaptive_mode", adaptiveMode)
             .apply()
     }
@@ -311,12 +355,15 @@ private fun BSharpNativeApp() {
 
     var panel by remember { mutableStateOf(AppPanel.Game) }
     var profileName by remember { mutableStateOf(store.profileName()) }
+    var avatar by remember { mutableStateOf(store.avatar()) }
     var levelIndex by remember { mutableStateOf(store.levelIndex()) }
     var correct by remember { mutableStateOf(store.correct()) }
     var attempts by remember { mutableStateOf(store.attempts()) }
     var target by remember { mutableStateOf(store.target()) }
     var preferTextLabels by remember { mutableStateOf(store.preferTextLabels()) }
     var describeAnswerAfterResult by remember { mutableStateOf(store.describeAnswerAfterResult()) }
+    var autoAdvanceAfterAnswer by remember { mutableStateOf(store.autoAdvanceAfterAnswer()) }
+    var showTapTargets by remember { mutableStateOf(store.showTapTargets()) }
     var adaptiveMode by remember { mutableStateOf(store.adaptiveMode()) }
     var history by remember { mutableStateOf(store.loadHistory()) }
     var correctChord by remember { mutableStateOf(Chords.take(levelIndex + 1).random()) }
@@ -396,14 +443,26 @@ private fun BSharpNativeApp() {
         store.saveSession(correct, attempts)
     }
 
-    val onSaveSettings = { newName: String, newTarget: Int, newPreferText: Boolean, newDescribe: Boolean, newAdaptive: Boolean ->
-        profileName = newName.ifBlank { "Guest" }
+    LaunchedEffect(selectedChord, autoAdvanceAfterAnswer, panel) {
+        if (panel == AppPanel.Game && autoAdvanceAfterAnswer && selectedChord != null) {
+            delay(3_000)
+            if (selectedChord != null) nextRound(true)
+        }
+    }
+
+    val onSaveSettings = { newName: String, newAvatar: String, newTarget: Int, newPreferText: Boolean, newDescribe: Boolean, newAutoAdvance: Boolean, newShowTapTargets: Boolean, newAdaptive: Boolean ->
+        val savedName = newName.ifBlank { defaultProfileName(context) }
+        val savedAvatar = newAvatar.takeIf { it in AvatarOptions } ?: AvatarOptions.first()
+        profileName = savedName
+        avatar = savedAvatar
         target = newTarget.coerceAtLeast(1)
         preferTextLabels = newPreferText
         describeAnswerAfterResult = newDescribe
+        autoAdvanceAfterAnswer = newAutoAdvance
+        showTapTargets = newShowTapTargets
         adaptiveMode = newAdaptive
-        store.saveProfileName(profileName)
-        store.saveSettings(newTarget, newPreferText, newDescribe, newAdaptive)
+        store.saveProfile(savedName, savedAvatar)
+        store.saveSettings(newTarget, newPreferText, newDescribe, newAutoAdvance, newShowTapTargets, newAdaptive)
         panel = AppPanel.Game
     }
 
@@ -413,6 +472,8 @@ private fun BSharpNativeApp() {
                 TopNavigation(
                     current = panel,
                     profileName = profileName,
+                    avatar = avatar,
+                    showTapTargets = showTapTargets,
                     onPanelSelected = { panel = it },
                 )
             }
@@ -425,6 +486,7 @@ private fun BSharpNativeApp() {
                     target = target,
                     levelIndex = levelIndex,
                     showTextLabels = preferTextLabels,
+                    showTapTargets = showTapTargets,
                     onLevelChange = ::changeLevel,
                     onReset = { showResetDialog = true },
                 )
@@ -456,6 +518,8 @@ private fun BSharpNativeApp() {
                     correct = correct,
                     preferTextLabels = preferTextLabels,
                     describeAnswerAfterResult = describeAnswerAfterResult,
+                    autoAdvanceAfterAnswer = autoAdvanceAfterAnswer,
+                    showTapTargets = showTapTargets,
                     onPlay = ::playCurrentChord,
                     onNext = { nextRound(true) },
                     onSelect = ::selectChord,
@@ -469,9 +533,12 @@ private fun BSharpNativeApp() {
                 )
                 AppPanel.Settings -> SettingsScreen(
                     profileName = profileName,
+                    avatar = avatar,
                     target = target,
                     preferTextLabels = preferTextLabels,
                     describeAnswerAfterResult = describeAnswerAfterResult,
+                    autoAdvanceAfterAnswer = autoAdvanceAfterAnswer,
+                    showTapTargets = showTapTargets,
                     adaptiveMode = adaptiveMode,
                     onSave = onSaveSettings,
                 )
@@ -506,6 +573,8 @@ private fun BSharpNativeApp() {
 private fun TopNavigation(
     current: AppPanel,
     profileName: String,
+    avatar: String,
+    showTapTargets: Boolean,
     onPanelSelected: (AppPanel) -> Unit,
 ) {
     Surface(
@@ -534,19 +603,19 @@ private fun TopNavigation(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                NavChip("Play", current == AppPanel.Game) { onPanelSelected(AppPanel.Game) }
-                NavChip("Trainer", current == AppPanel.Trainer) { onPanelSelected(AppPanel.Trainer) }
-                NavChip("Stats", current == AppPanel.Stats) { onPanelSelected(AppPanel.Stats) }
-                NavChip("Settings", current == AppPanel.Settings) { onPanelSelected(AppPanel.Settings) }
-                NavChip("About", current == AppPanel.About) { onPanelSelected(AppPanel.About) }
+                NavChip("Play", current == AppPanel.Game, showTapTargets) { onPanelSelected(AppPanel.Game) }
+                NavChip("Trainer", current == AppPanel.Trainer, showTapTargets) { onPanelSelected(AppPanel.Trainer) }
+                NavChip("Stats", current == AppPanel.Stats, showTapTargets) { onPanelSelected(AppPanel.Stats) }
+                NavChip("Settings", current == AppPanel.Settings, showTapTargets) { onPanelSelected(AppPanel.Settings) }
+                NavChip("About", current == AppPanel.About, showTapTargets) { onPanelSelected(AppPanel.About) }
             }
-            ProfileChip(profileName)
+            ProfileChip(profileName, avatar)
         }
     }
 }
 
 @Composable
-private fun NavChip(label: String, active: Boolean, onClick: () -> Unit) {
+private fun NavChip(label: String, active: Boolean, showTapTargets: Boolean, onClick: () -> Unit) {
     val color by animateColorAsState(
         targetValue = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
         label = "nav-chip-color",
@@ -556,6 +625,7 @@ private fun NavChip(label: String, active: Boolean, onClick: () -> Unit) {
         contentColor = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
         shape = CircleShape,
         modifier = Modifier
+            .tapTargetOverlay(showTapTargets)
             .clip(CircleShape)
             .clickable(onClick = onClick),
     ) {
@@ -568,15 +638,15 @@ private fun NavChip(label: String, active: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun ProfileChip(profileName: String) {
+private fun ProfileChip(profileName: String, avatar: String) {
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
         shape = CircleShape,
-        modifier = Modifier.widthIn(min = 58.dp, max = 92.dp),
+        modifier = Modifier.widthIn(min = 72.dp, max = 116.dp),
     ) {
         Text(
-            text = profileName,
+            text = "$avatar $profileName",
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
@@ -598,6 +668,8 @@ private fun GameScreen(
     correct: Int,
     preferTextLabels: Boolean,
     describeAnswerAfterResult: Boolean,
+    autoAdvanceAfterAnswer: Boolean,
+    showTapTargets: Boolean,
     onPlay: () -> Unit,
     onNext: () -> Unit,
     onSelect: (ChordDefinition) -> Unit,
@@ -610,6 +682,8 @@ private fun GameScreen(
             canAnswer = audioStarted,
             answered = selectedChord != null,
             showTextLabels = preferTextLabels,
+            requiresExplicitNext = !autoAdvanceAfterAnswer,
+            showTapTargets = showTapTargets,
             onPlay = onPlay,
             onNext = onNext,
         )
@@ -626,6 +700,7 @@ private fun GameScreen(
             selectedChord = selectedChord,
             showTextLabels = preferTextLabels,
             describeAnswerAfterResult = describeAnswerAfterResult,
+            showTapTargets = showTapTargets,
             onSelect = onSelect,
             modifier = Modifier.weight(1f),
         )
@@ -637,13 +712,21 @@ private fun ControlCluster(
     canAnswer: Boolean,
     answered: Boolean,
     showTextLabels: Boolean,
+    requiresExplicitNext: Boolean,
+    showTapTargets: Boolean,
     onPlay: () -> Unit,
     onNext: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(if (showTextLabels) 92.dp else 78.dp)
+            .height(
+                when {
+                    showTextLabels -> 92.dp
+                    requiresExplicitNext -> 78.dp
+                    else -> 66.dp
+                }
+            )
             .padding(horizontal = 18.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -653,18 +736,22 @@ private fun ControlCluster(
             enabled = true,
             filled = !canAnswer || !answered,
             showTextLabels = showTextLabels,
+            showTapTargets = showTapTargets,
             onClick = onPlay,
             modifier = Modifier.weight(1f),
         )
-        ActionButton(
-            label = "Next",
-            mark = ResultMark.Next,
-            enabled = answered,
-            filled = answered,
-            showTextLabels = showTextLabels,
-            onClick = onNext,
-            modifier = Modifier.weight(1f),
-        )
+        if (requiresExplicitNext) {
+            ActionButton(
+                label = "Next",
+                mark = ResultMark.Next,
+                enabled = answered,
+                filled = answered,
+                showTextLabels = showTextLabels,
+                showTapTargets = showTapTargets,
+                onClick = onNext,
+                modifier = Modifier.weight(1f),
+            )
+        }
     }
 }
 
@@ -682,6 +769,7 @@ private fun ActionButton(
     enabled: Boolean,
     filled: Boolean,
     showTextLabels: Boolean,
+    showTapTargets: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -704,6 +792,7 @@ private fun ActionButton(
         shape = RoundedCornerShape(30.dp),
         modifier = modifier
             .fillMaxHeight()
+            .tapTargetOverlay(showTapTargets)
             .clip(RoundedCornerShape(30.dp))
             .clickable(enabled = enabled, onClick = onClick)
             .semantics { contentDescription = label },
@@ -837,6 +926,7 @@ private fun FlagGrid(
     selectedChord: ChordDefinition?,
     showTextLabels: Boolean,
     describeAnswerAfterResult: Boolean,
+    showTapTargets: Boolean,
     onSelect: (ChordDefinition) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -865,6 +955,7 @@ private fun FlagGrid(
                             showResult = selectedChord != null,
                             showTextLabels = showTextLabels,
                             describeAnswerAfterResult = describeAnswerAfterResult,
+                            showTapTargets = showTapTargets,
                             onClick = { onSelect(chord) },
                             modifier = Modifier
                                 .weight(1f)
@@ -892,6 +983,7 @@ private fun FlagTarget(
     showResult: Boolean,
     showTextLabels: Boolean,
     describeAnswerAfterResult: Boolean,
+    showTapTargets: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -916,6 +1008,7 @@ private fun FlagTarget(
         modifier = modifier
             .fillMaxWidth()
             .fillMaxHeight()
+            .tapTargetOverlay(showTapTargets)
             .clickable(onClick = onClick)
             .semantics { contentDescription = chord.display + " flag" },
         contentAlignment = Alignment.Center,
@@ -1034,6 +1127,7 @@ private fun LevelSwatch(chord: ChordDefinition) {
 private fun LevelSelector(
     levelIndex: Int,
     showTextLabels: Boolean,
+    showTapTargets: Boolean,
     onLevelChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -1043,6 +1137,7 @@ private fun LevelSelector(
         OutlinedButton(
             onClick = { expanded = true },
             shape = RoundedCornerShape(18.dp),
+            modifier = Modifier.tapTargetOverlay(showTapTargets, Color(0xFF00D7FF)),
         ) {
             LevelSwatch(current)
             Spacer(modifier = Modifier.width(8.dp))
@@ -1076,6 +1171,7 @@ private fun SessionFooter(
     target: Int,
     levelIndex: Int,
     showTextLabels: Boolean,
+    showTapTargets: Boolean,
     onLevelChange: (Int) -> Unit,
     onReset: () -> Unit,
 ) {
@@ -1105,10 +1201,14 @@ private fun SessionFooter(
             LevelSelector(
                 levelIndex = levelIndex,
                 showTextLabels = showTextLabels,
+                showTapTargets = showTapTargets,
                 onLevelChange = onLevelChange,
                 modifier = Modifier.weight(1f),
             )
-            TextButton(onClick = onReset) {
+            TextButton(
+                onClick = onReset,
+                modifier = Modifier.tapTargetOverlay(showTapTargets, Color(0xFF00D7FF)),
+            ) {
                 Text("Reset")
             }
         }
@@ -1226,16 +1326,22 @@ private fun DashboardMetric(label: String, value: String, modifier: Modifier = M
 @Composable
 private fun SettingsScreen(
     profileName: String,
+    avatar: String,
     target: Int,
     preferTextLabels: Boolean,
     describeAnswerAfterResult: Boolean,
+    autoAdvanceAfterAnswer: Boolean,
+    showTapTargets: Boolean,
     adaptiveMode: Boolean,
-    onSave: (String, Int, Boolean, Boolean, Boolean) -> Unit,
+    onSave: (String, String, Int, Boolean, Boolean, Boolean, Boolean, Boolean) -> Unit,
 ) {
     var localName by remember(profileName) { mutableStateOf(profileName) }
+    var localAvatar by remember(avatar) { mutableStateOf(avatar) }
     var localTarget by remember(target) { mutableStateOf(target.toString()) }
     var localPreferText by remember(preferTextLabels) { mutableStateOf(preferTextLabels) }
     var localDescribe by remember(describeAnswerAfterResult) { mutableStateOf(describeAnswerAfterResult) }
+    var localAutoAdvance by remember(autoAdvanceAfterAnswer) { mutableStateOf(autoAdvanceAfterAnswer) }
+    var localShowTapTargets by remember(showTapTargets) { mutableStateOf(showTapTargets) }
     var localAdaptive by remember(adaptiveMode) { mutableStateOf(adaptiveMode) }
 
     Column(
@@ -1246,6 +1352,12 @@ private fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Text("Settings", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black)
+        Text("Profile", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        AvatarPicker(
+            selectedAvatar = localAvatar,
+            showTapTargets = localShowTapTargets,
+            onAvatarSelected = { localAvatar = it },
+        )
         TextField(
             value = localName,
             onValueChange = { localName = it },
@@ -1253,6 +1365,12 @@ private fun SettingsScreen(
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
+        Text("Accessibility", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        SettingToggle("Auto-advance after answer", localAutoAdvance, localShowTapTargets) { localAutoAdvance = it }
+        SettingToggle("Show tap target map", localShowTapTargets, localShowTapTargets) { localShowTapTargets = it }
+        SettingToggle("Prefer text labels", localPreferText, localShowTapTargets) { localPreferText = it }
+        SettingToggle("Describe answer after result", localDescribe, localShowTapTargets) { localDescribe = it }
+        Text("Practice", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         TextField(
             value = localTarget,
             onValueChange = { value -> localTarget = value.filter { it.isDigit() }.take(3) },
@@ -1260,12 +1378,19 @@ private fun SettingsScreen(
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
-        SettingToggle("Prefer text labels", localPreferText) { localPreferText = it }
-        SettingToggle("Describe answer after result", localDescribe) { localDescribe = it }
-        SettingToggle("Favor missed colors", localAdaptive) { localAdaptive = it }
+        SettingToggle("Favor missed colors", localAdaptive, localShowTapTargets) { localAdaptive = it }
         Button(
             onClick = {
-                onSave(localName, localTarget.toIntOrNull() ?: target, localPreferText, localDescribe, localAdaptive)
+                onSave(
+                    localName,
+                    localAvatar,
+                    localTarget.toIntOrNull() ?: target,
+                    localPreferText,
+                    localDescribe,
+                    localAutoAdvance,
+                    localShowTapTargets,
+                    localAdaptive,
+                )
             },
             shape = RoundedCornerShape(24.dp),
             modifier = Modifier.fillMaxWidth(),
@@ -1276,8 +1401,58 @@ private fun SettingsScreen(
 }
 
 @Composable
-private fun SettingToggle(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
+private fun AvatarPicker(
+    selectedAvatar: String,
+    showTapTargets: Boolean,
+    onAvatarSelected: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        AvatarOptions.chunked(5).forEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                row.forEach { avatar ->
+                    val selected = avatar == selectedAvatar
+                    Surface(
+                        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        shape = CircleShape,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(52.dp)
+                            .tapTargetOverlay(showTapTargets, Color(0xFF00D7FF))
+                            .clip(CircleShape)
+                            .clickable { onAvatarSelected(avatar) },
+                    ) {
+                        Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                            Text(avatar, style = MaterialTheme.typography.headlineSmall)
+                        }
+                    }
+                }
+                repeat(5 - row.size) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SettingToggle(
+    label: String,
+    checked: Boolean,
+    showTapTargets: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier
+            .tapTargetOverlay(showTapTargets, Color(0xFF00D7FF))
+            .clip(RoundedCornerShape(24.dp))
+            .clickable { onCheckedChange(!checked) },
+    ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
