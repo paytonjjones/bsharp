@@ -182,6 +182,14 @@ private val AvatarOptions = listOf(
     "🐧", "🐦", "🦉", "🐢", "🐙",
 )
 
+private const val WarmupAutoAdvanceAnswers = 3
+private const val WarmupAutoAdvanceMillis = 3_000L
+private const val LessonAutoAdvanceMillis = 2_000L
+
+private fun autoAdvanceDelayMillis(answerCount: Int): Long {
+    return if (answerCount <= WarmupAutoAdvanceAnswers) WarmupAutoAdvanceMillis else LessonAutoAdvanceMillis
+}
+
 private fun defaultProfileName(context: Context): String {
     val deviceName = runCatching {
         Settings.Global.getString(context.contentResolver, Settings.Global.DEVICE_NAME)
@@ -398,6 +406,8 @@ private fun BSharpNativeApp() {
     var missedCounts by remember { mutableStateOf(store.loadMisses()) }
     var reviewingMisses by remember { mutableStateOf(false) }
     var topBarRevealed by remember { mutableStateOf(false) }
+    var autoAdvanceRemainingMillis by remember { mutableStateOf(0L) }
+    var autoAdvanceTotalMillis by remember { mutableStateOf(0L) }
     var correctChord by remember { mutableStateOf(Chords.take(levelIndex + 1).random()) }
     var selectedChord by remember { mutableStateOf<ChordDefinition?>(null) }
     var audioStarted by remember { mutableStateOf(false) }
@@ -546,10 +556,23 @@ private fun BSharpNativeApp() {
         audio.playChord(reviewChord)
     }
 
-    LaunchedEffect(selectedChord, autoAdvanceAfterAnswer, panel) {
-        if (panel == AppPanel.Game && autoAdvanceAfterAnswer && selectedChord != null) {
-            delay(3_000)
-            if (selectedChord != null) nextRound(true)
+    LaunchedEffect(selectedChord, autoAdvanceAfterAnswer, panel, attempts, reviewingMisses) {
+        autoAdvanceRemainingMillis = 0L
+        autoAdvanceTotalMillis = 0L
+        val answeredChord = selectedChord
+        if (panel == AppPanel.Game && autoAdvanceAfterAnswer && answeredChord != null) {
+            val delayMillis = autoAdvanceDelayMillis(attempts)
+            autoAdvanceTotalMillis = delayMillis
+            var remainingMillis = delayMillis
+            while (remainingMillis > 0L && selectedChord == answeredChord) {
+                autoAdvanceRemainingMillis = remainingMillis
+                val tickMillis = minOf(50L, remainingMillis)
+                delay(tickMillis)
+                remainingMillis -= tickMillis
+            }
+            autoAdvanceRemainingMillis = 0L
+            autoAdvanceTotalMillis = 0L
+            if (selectedChord == answeredChord) nextRound(true)
         }
     }
 
@@ -643,6 +666,16 @@ private fun BSharpNativeApp() {
                     autoAdvanceAfterAnswer = autoAdvanceAfterAnswer,
                     showTapTargets = showTapTargets,
                     adaptiveMode = adaptiveMode,
+                    autoAdvanceProgress = if (autoAdvanceTotalMillis > 0L) {
+                        autoAdvanceRemainingMillis.toFloat() / autoAdvanceTotalMillis.toFloat()
+                    } else {
+                        0f
+                    },
+                    autoAdvanceSeconds = if (autoAdvanceRemainingMillis > 0L) {
+                        ((autoAdvanceRemainingMillis + 999L) / 1_000L).toInt()
+                    } else {
+                        0
+                    },
                     onPlay = ::playCurrentChord,
                     onNext = { nextRound(true) },
                     onReviewMisses = ::reviewMisses,
@@ -808,6 +841,8 @@ private fun GameScreen(
     autoAdvanceAfterAnswer: Boolean,
     showTapTargets: Boolean,
     adaptiveMode: Boolean,
+    autoAdvanceProgress: Float,
+    autoAdvanceSeconds: Int,
     onPlay: () -> Unit,
     onNext: () -> Unit,
     onReviewMisses: () -> Unit,
@@ -845,6 +880,8 @@ private fun GameScreen(
             showTextLabels = preferTextLabels,
             describeAnswerAfterResult = describeAnswerAfterResult,
             showTapTargets = showTapTargets,
+            autoAdvanceProgress = autoAdvanceProgress,
+            autoAdvanceSeconds = autoAdvanceSeconds,
             onSelect = onSelect,
             modifier = Modifier.weight(1f),
         )
@@ -965,39 +1002,88 @@ private fun ResultBadge(
     label: String,
     color: Color,
     showTextLabels: Boolean,
+    countdownProgress: Float,
+    countdownSeconds: Int,
     modifier: Modifier = Modifier,
 ) {
-    Surface(
-        color = color,
-        contentColor = Color.White,
-        shape = CircleShape,
-        tonalElevation = 10.dp,
-        shadowElevation = 12.dp,
-        modifier = modifier,
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(if (showTextLabels) 18.dp else 22.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center,
+    Box(modifier = modifier) {
+        Surface(
+            color = color,
+            contentColor = Color.White,
+            shape = CircleShape,
+            tonalElevation = 10.dp,
+            shadowElevation = 12.dp,
+            modifier = Modifier.fillMaxSize(),
         ) {
-            LogoMark(
-                mark = mark,
-                tint = Color.White,
-                modifier = Modifier.size(if (showTextLabels) 58.dp else 72.dp),
-            )
-            if (showTextLabels) {
-                Spacer(modifier = Modifier.height(6.dp))
-                Text(
-                    text = label,
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Black,
-                    maxLines = 2,
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(if (showTextLabels) 18.dp else 22.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                LogoMark(
+                    mark = mark,
+                    tint = Color.White,
+                    modifier = Modifier.size(if (showTextLabels) 58.dp else 72.dp),
                 )
+                if (showTextLabels) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = label,
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Black,
+                        maxLines = 2,
+                    )
+                }
             }
         }
+        if (countdownProgress > 0f) {
+            CountdownRing(
+                progress = countdownProgress.coerceIn(0f, 1f),
+                modifier = Modifier.fillMaxSize(),
+            )
+            Surface(
+                color = Color.White,
+                contentColor = color,
+                shape = CircleShape,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(36.dp),
+                tonalElevation = 8.dp,
+                shadowElevation = 6.dp,
+            ) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    Text(
+                        text = countdownSeconds.coerceAtLeast(1).toString(),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Black,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CountdownRing(progress: Float, modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.padding(5.dp)) {
+        val strokeWidth = size.minDimension * 0.07f
+        drawArc(
+            color = Color.White.copy(alpha = 0.28f),
+            startAngle = -90f,
+            sweepAngle = 360f,
+            useCenter = false,
+            style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+        )
+        drawArc(
+            color = Color.White,
+            startAngle = -90f,
+            sweepAngle = 360f * progress,
+            useCenter = false,
+            style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+        )
     }
 }
 
@@ -1071,6 +1157,8 @@ private fun FlagGrid(
     showTextLabels: Boolean,
     describeAnswerAfterResult: Boolean,
     showTapTargets: Boolean,
+    autoAdvanceProgress: Float,
+    autoAdvanceSeconds: Int,
     onSelect: (ChordDefinition) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -1100,6 +1188,8 @@ private fun FlagGrid(
                             showTextLabels = showTextLabels,
                             describeAnswerAfterResult = describeAnswerAfterResult,
                             showTapTargets = showTapTargets,
+                            autoAdvanceProgress = autoAdvanceProgress,
+                            autoAdvanceSeconds = autoAdvanceSeconds,
                             onClick = { onSelect(chord) },
                             modifier = Modifier
                                 .weight(1f)
@@ -1128,6 +1218,8 @@ private fun FlagTarget(
     showTextLabels: Boolean,
     describeAnswerAfterResult: Boolean,
     showTapTargets: Boolean,
+    autoAdvanceProgress: Float,
+    autoAdvanceSeconds: Int,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -1182,6 +1274,8 @@ private fun FlagTarget(
                     label = "Correct",
                     color = Color(0xFF00A83B),
                     showTextLabels = showTextLabels,
+                    countdownProgress = if (showResult) autoAdvanceProgress else 0f,
+                    countdownSeconds = autoAdvanceSeconds,
                     modifier = Modifier.size(if (showTextLabels) 156.dp else 132.dp),
                 )
             } else if (showResult && isSelected) {
@@ -1190,6 +1284,8 @@ private fun FlagTarget(
                     label = "Try again",
                     color = Color(0xFFE21B2D),
                     showTextLabels = showTextLabels,
+                    countdownProgress = autoAdvanceProgress,
+                    countdownSeconds = autoAdvanceSeconds,
                     modifier = Modifier.size(if (showTextLabels) 148.dp else 124.dp),
                 )
             }
