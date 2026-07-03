@@ -13,7 +13,7 @@ import android.view.WindowInsetsController
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
+import androidx.core.view.WindowCompat
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SizeTransform
@@ -113,9 +113,8 @@ import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        enableEdgeToEdge()
-        enterImmersiveMode()
         super.onCreate(savedInstanceState)
+        hideStatusBarIconsWithoutCutout()
 
         setContent {
             BSharpTheme {
@@ -126,16 +125,17 @@ class MainActivity : ComponentActivity() {
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) enterImmersiveMode()
+        if (hasFocus) hideStatusBarIconsWithoutCutout()
     }
 
-    private fun enterImmersiveMode() {
+    private fun hideStatusBarIconsWithoutCutout() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             window.attributes = window.attributes.apply {
-                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_NEVER
             }
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            WindowCompat.setDecorFitsSystemWindows(window, true)
             window.insetsController?.let { controller ->
                 controller.hide(WindowInsets.Type.statusBars())
                 controller.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
@@ -144,8 +144,6 @@ class MainActivity : ComponentActivity() {
             @Suppress("DEPRECATION")
             window.decorView.systemUiVisibility =
                 View.SYSTEM_UI_FLAG_FULLSCREEN or
-                    View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
                     View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         }
     }
