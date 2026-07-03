@@ -14,11 +14,28 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.Canvas
@@ -607,7 +624,13 @@ private fun BSharpNativeApp() {
 
     Scaffold(
         topBar = {
-            AnimatedVisibility(visible = panel != AppPanel.Game || !audioStarted || topBarRevealed) {
+            AnimatedVisibility(
+                visible = panel != AppPanel.Game || !audioStarted || topBarRevealed,
+                enter = fadeIn(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
+                    slideInVertically(animationSpec = tween(280, easing = FastOutSlowInEasing)) { -it },
+                exit = fadeOut(animationSpec = tween(140)) +
+                    slideOutVertically(animationSpec = tween(220, easing = FastOutSlowInEasing)) { -it },
+            ) {
                 TopNavigation(
                     current = panel,
                     profileName = profileName,
@@ -621,7 +644,13 @@ private fun BSharpNativeApp() {
             }
         },
         bottomBar = {
-            if (panel == AppPanel.Game) {
+            AnimatedVisibility(
+                visible = panel == AppPanel.Game,
+                enter = fadeIn(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
+                    slideInVertically(animationSpec = tween(280, easing = FastOutSlowInEasing)) { it / 2 },
+                exit = fadeOut(animationSpec = tween(140)) +
+                    slideOutVertically(animationSpec = tween(220, easing = FastOutSlowInEasing)) { it / 2 },
+            ) {
                 SessionFooter(
                     correct = correct,
                     attempts = attempts,
@@ -649,57 +678,75 @@ private fun BSharpNativeApp() {
                     .padding(horizontal = 14.dp)
             }
         ) {
-            when (panel) {
-                AppPanel.Game -> GameScreen(
-                    activeChords = activeChords(),
-                    correctChord = correctChord,
-                    selectedChord = selectedChord,
-                    audioStarted = audioStarted,
-                    levelIndex = levelIndex,
-                    target = target,
-                    attempts = attempts,
-                    correct = correct,
-                    missedCount = missedCounts.values.sum(),
-                    reviewingMisses = reviewingMisses,
-                    preferTextLabels = preferTextLabels,
-                    describeAnswerAfterResult = describeAnswerAfterResult,
-                    autoAdvanceAfterAnswer = autoAdvanceAfterAnswer,
-                    showTapTargets = showTapTargets,
-                    adaptiveMode = adaptiveMode,
-                    autoAdvanceProgress = if (autoAdvanceTotalMillis > 0L) {
-                        autoAdvanceRemainingMillis.toFloat() / autoAdvanceTotalMillis.toFloat()
-                    } else {
-                        0f
-                    },
-                    autoAdvanceSeconds = if (autoAdvanceRemainingMillis > 0L) {
-                        ((autoAdvanceRemainingMillis + 999L) / 1_000L).toInt()
-                    } else {
-                        0
-                    },
-                    onPlay = ::playCurrentChord,
-                    onNext = { nextRound(true) },
-                    onReviewMisses = ::reviewMisses,
-                    onSelect = ::selectChord,
-                )
-                AppPanel.Trainer -> TrainerScreen(onPreview = { audio.playChord(it) })
-                AppPanel.Stats -> StatsScreen(
-                    history = history,
-                    currentCorrect = correct,
-                    currentAttempts = attempts,
-                    currentLevel = levelIndex,
-                )
-                AppPanel.Settings -> SettingsScreen(
-                    profileName = profileName,
-                    avatar = avatar,
-                    target = target,
-                    preferTextLabels = preferTextLabels,
-                    describeAnswerAfterResult = describeAnswerAfterResult,
-                    autoAdvanceAfterAnswer = autoAdvanceAfterAnswer,
-                    showTapTargets = showTapTargets,
-                    adaptiveMode = adaptiveMode,
-                    onSave = onSaveSettings,
-                )
-                AppPanel.About -> AboutScreen()
+            AnimatedContent(
+                targetState = panel,
+                modifier = Modifier.fillMaxSize(),
+                transitionSpec = {
+                    val direction = targetState.ordinal - initialState.ordinal
+                    val enterOffset: (Int) -> Int = { width -> if (direction >= 0) width / 8 else -width / 8 }
+                    val exitOffset: (Int) -> Int = { width -> if (direction >= 0) -width / 10 else width / 10 }
+                    val enter = fadeIn(animationSpec = tween(190, easing = FastOutSlowInEasing)) +
+                        slideInHorizontally(animationSpec = tween(300, easing = FastOutSlowInEasing), initialOffsetX = enterOffset) +
+                        scaleIn(animationSpec = tween(300, easing = FastOutSlowInEasing), initialScale = 0.98f)
+                    val exit = fadeOut(animationSpec = tween(120)) +
+                        slideOutHorizontally(animationSpec = tween(220, easing = FastOutSlowInEasing), targetOffsetX = exitOffset) +
+                        scaleOut(animationSpec = tween(180), targetScale = 0.985f)
+                    (enter togetherWith exit).using(SizeTransform(clip = false))
+                },
+                label = "panel-transition",
+            ) { currentPanel ->
+                when (currentPanel) {
+                    AppPanel.Game -> GameScreen(
+                        activeChords = activeChords(),
+                        correctChord = correctChord,
+                        selectedChord = selectedChord,
+                        audioStarted = audioStarted,
+                        levelIndex = levelIndex,
+                        target = target,
+                        attempts = attempts,
+                        correct = correct,
+                        missedCount = missedCounts.values.sum(),
+                        reviewingMisses = reviewingMisses,
+                        preferTextLabels = preferTextLabels,
+                        describeAnswerAfterResult = describeAnswerAfterResult,
+                        autoAdvanceAfterAnswer = autoAdvanceAfterAnswer,
+                        showTapTargets = showTapTargets,
+                        adaptiveMode = adaptiveMode,
+                        autoAdvanceProgress = if (autoAdvanceTotalMillis > 0L) {
+                            autoAdvanceRemainingMillis.toFloat() / autoAdvanceTotalMillis.toFloat()
+                        } else {
+                            0f
+                        },
+                        autoAdvanceSeconds = if (autoAdvanceRemainingMillis > 0L) {
+                            ((autoAdvanceRemainingMillis + 999L) / 1_000L).toInt()
+                        } else {
+                            0
+                        },
+                        onPlay = ::playCurrentChord,
+                        onNext = { nextRound(true) },
+                        onReviewMisses = ::reviewMisses,
+                        onSelect = ::selectChord,
+                    )
+                    AppPanel.Trainer -> TrainerScreen(onPreview = { audio.playChord(it) })
+                    AppPanel.Stats -> StatsScreen(
+                        history = history,
+                        currentCorrect = correct,
+                        currentAttempts = attempts,
+                        currentLevel = levelIndex,
+                    )
+                    AppPanel.Settings -> SettingsScreen(
+                        profileName = profileName,
+                        avatar = avatar,
+                        target = target,
+                        preferTextLabels = preferTextLabels,
+                        describeAnswerAfterResult = describeAnswerAfterResult,
+                        autoAdvanceAfterAnswer = autoAdvanceAfterAnswer,
+                        showTapTargets = showTapTargets,
+                        adaptiveMode = adaptiveMode,
+                        onSave = onSaveSettings,
+                    )
+                    AppPanel.About -> AboutScreen()
+                }
             }
             if (panel == AppPanel.Game && audioStarted && !topBarRevealed) {
                 Box(
@@ -788,11 +835,17 @@ private fun NavChip(label: String, active: Boolean, showTapTargets: Boolean, onC
         targetValue = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
         label = "nav-chip-color",
     )
+    val chipScale by animateFloatAsState(
+        targetValue = if (active) 1.04f else 1f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
+        label = "nav-chip-scale",
+    )
     Surface(
         color = color,
         contentColor = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
         shape = CircleShape,
         modifier = Modifier
+            .scale(chipScale)
             .tapTargetOverlay(showTapTargets)
             .clip(CircleShape)
             .clickable(onClick = onClick),
@@ -849,7 +902,9 @@ private fun GameScreen(
     onSelect: (ChordDefinition) -> Unit,
 ) {
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier
+            .fillMaxSize()
+            .animateContentSize(animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         ControlCluster(
@@ -861,7 +916,15 @@ private fun GameScreen(
             onPlay = onPlay,
             onNext = onNext,
         )
-        AnimatedVisibility(visible = attempts >= target) {
+        AnimatedVisibility(
+            visible = attempts >= target,
+            enter = fadeIn(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
+                expandVertically(animationSpec = tween(260, easing = FastOutSlowInEasing), expandFrom = Alignment.Top) +
+                scaleIn(animationSpec = tween(260, easing = FastOutSlowInEasing), initialScale = 0.96f),
+            exit = fadeOut(animationSpec = tween(120)) +
+                shrinkVertically(animationSpec = tween(180, easing = FastOutSlowInEasing), shrinkTowards = Alignment.Top) +
+                scaleOut(animationSpec = tween(160), targetScale = 0.98f),
+        ) {
             LevelGuidance(
                 correct = correct,
                 attempts = attempts,
@@ -901,6 +964,7 @@ private fun ControlCluster(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .animateContentSize(animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow))
             .height(
                 when {
                     showTextLabels -> 92.dp
@@ -921,7 +985,16 @@ private fun ControlCluster(
             onClick = onPlay,
             modifier = Modifier.weight(1f),
         )
-        if (requiresExplicitNext) {
+        AnimatedVisibility(
+            visible = requiresExplicitNext,
+            enter = fadeIn(animationSpec = tween(160, easing = FastOutSlowInEasing)) +
+                expandVertically(animationSpec = tween(220, easing = FastOutSlowInEasing)) +
+                scaleIn(animationSpec = tween(220, easing = FastOutSlowInEasing), initialScale = 0.92f),
+            exit = fadeOut(animationSpec = tween(100)) +
+                shrinkVertically(animationSpec = tween(160, easing = FastOutSlowInEasing)) +
+                scaleOut(animationSpec = tween(140), targetScale = 0.96f),
+            modifier = Modifier.weight(1f),
+        ) {
             ActionButton(
                 label = "Next",
                 mark = ResultMark.Next,
@@ -930,7 +1003,7 @@ private fun ControlCluster(
                 showTextLabels = showTextLabels,
                 showTapTargets = showTapTargets,
                 onClick = onNext,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }
@@ -964,15 +1037,35 @@ private fun ActionButton(
         filled -> MaterialTheme.colorScheme.onPrimaryContainer
         else -> MaterialTheme.colorScheme.onSecondaryContainer
     }
+    val buttonScale by animateFloatAsState(
+        targetValue = when {
+            !enabled -> 0.98f
+            filled -> 1f
+            else -> 0.985f
+        },
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
+        label = "action-button-scale",
+    )
+    val tonalElevation by animateDpAsState(
+        targetValue = if (enabled) 6.dp else 0.dp,
+        animationSpec = tween(180, easing = FastOutSlowInEasing),
+        label = "action-button-tonal-elevation",
+    )
+    val shadowElevation by animateDpAsState(
+        targetValue = if (enabled) 3.dp else 0.dp,
+        animationSpec = tween(180, easing = FastOutSlowInEasing),
+        label = "action-button-shadow-elevation",
+    )
 
     Surface(
         color = containerColor,
         contentColor = contentColor,
-        tonalElevation = if (enabled) 6.dp else 0.dp,
-        shadowElevation = if (enabled) 3.dp else 0.dp,
+        tonalElevation = tonalElevation,
+        shadowElevation = shadowElevation,
         shape = RoundedCornerShape(30.dp),
         modifier = modifier
             .fillMaxHeight()
+            .scale(buttonScale)
             .tapTargetOverlay(showTapTargets)
             .clip(RoundedCornerShape(30.dp))
             .clickable(enabled = enabled, onClick = onClick)
@@ -1238,6 +1331,26 @@ private fun FlagTarget(
         showResult && isSelected -> 8.dp
         else -> 3.dp
     }
+    val animatedBorderColor by animateColorAsState(
+        targetValue = borderColor,
+        animationSpec = tween(180, easing = FastOutSlowInEasing),
+        label = "flag-border-color",
+    )
+    val animatedBorderWidth by animateDpAsState(
+        targetValue = borderWidth,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
+        label = "flag-border-width",
+    )
+    val cornerRadius by animateDpAsState(
+        targetValue = if (showResult) 42.dp else 34.dp,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
+        label = "flag-corner-radius",
+    )
+    val tileColor by animateColorAsState(
+        targetValue = chord.color,
+        animationSpec = tween(240, easing = FastOutSlowInEasing),
+        label = "flag-color",
+    )
     val textColor = if (chord.key == "black" || chord.key == "brown" || chord.key == "blue") Color.White else Color.Black
 
     Box(
@@ -1254,12 +1367,18 @@ private fun FlagTarget(
                 .fillMaxSize()
                 .padding(horizontal = 18.dp, vertical = 5.dp)
                 .scale(scale)
-                .clip(RoundedCornerShape(34.dp))
-                .background(chord.color)
-                .border(borderWidth, borderColor, RoundedCornerShape(34.dp)),
+                .clip(RoundedCornerShape(cornerRadius))
+                .background(tileColor)
+                .border(animatedBorderWidth, animatedBorderColor, RoundedCornerShape(cornerRadius)),
             contentAlignment = Alignment.Center,
         ) {
-            if (!showResult && showTextLabels) {
+            AnimatedVisibility(
+                visible = !showResult && showTextLabels,
+                enter = fadeIn(animationSpec = tween(160, easing = FastOutSlowInEasing)) +
+                    scaleIn(animationSpec = tween(180, easing = FastOutSlowInEasing), initialScale = 0.96f),
+                exit = fadeOut(animationSpec = tween(110)) +
+                    scaleOut(animationSpec = tween(130), targetScale = 0.98f),
+            ) {
                 Text(
                     text = chord.display,
                     color = textColor,
@@ -1268,7 +1387,16 @@ private fun FlagTarget(
                     textAlign = TextAlign.Center,
                 )
             }
-            if (showResult && isCorrectAnswer) {
+            AnimatedVisibility(
+                visible = showResult && isCorrectAnswer,
+                enter = fadeIn(animationSpec = tween(120, easing = FastOutSlowInEasing)) +
+                    scaleIn(
+                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+                        initialScale = 0.72f,
+                    ),
+                exit = fadeOut(animationSpec = tween(90)) +
+                    scaleOut(animationSpec = tween(120), targetScale = 0.92f),
+            ) {
                 ResultBadge(
                     mark = ResultMark.Check,
                     label = "Correct",
@@ -1278,7 +1406,17 @@ private fun FlagTarget(
                     countdownSeconds = autoAdvanceSeconds,
                     modifier = Modifier.size(if (showTextLabels) 156.dp else 132.dp),
                 )
-            } else if (showResult && isSelected) {
+            }
+            AnimatedVisibility(
+                visible = showResult && isSelected && !isCorrectAnswer,
+                enter = fadeIn(animationSpec = tween(120, easing = FastOutSlowInEasing)) +
+                    scaleIn(
+                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
+                        initialScale = 0.72f,
+                    ),
+                exit = fadeOut(animationSpec = tween(90)) +
+                    scaleOut(animationSpec = tween(120), targetScale = 0.92f),
+            ) {
                 ResultBadge(
                     mark = ResultMark.Cross,
                     label = "Try again",
@@ -1289,12 +1427,18 @@ private fun FlagTarget(
                     modifier = Modifier.size(if (showTextLabels) 148.dp else 124.dp),
                 )
             }
-            if (describeAnswerAfterResult && showResult && isSelected && isCorrectAnswer) {
+            AnimatedVisibility(
+                visible = describeAnswerAfterResult && showResult && isSelected && isCorrectAnswer,
+                enter = fadeIn(animationSpec = tween(150, easing = FastOutSlowInEasing)) +
+                    slideInVertically(animationSpec = tween(220, easing = FastOutSlowInEasing)) { it / 2 },
+                exit = fadeOut(animationSpec = tween(90)) +
+                    slideOutVertically(animationSpec = tween(140, easing = FastOutSlowInEasing)) { it / 2 },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+            ) {
                 AnswerDescription(
                     chord = chord,
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
                 )
             }
         }
@@ -1356,7 +1500,9 @@ private fun LevelGuidance(
         color = if (perfect && missedCount == 0) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
         contentColor = if (perfect && missedCount == 0) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
         shape = RoundedCornerShape(24.dp),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .animateContentSize(animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow)),
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -1367,7 +1513,13 @@ private fun LevelGuidance(
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold,
             )
-            if (missedCount > 0 && !reviewingMisses) {
+            AnimatedVisibility(
+                visible = missedCount > 0 && !reviewingMisses,
+                enter = fadeIn(animationSpec = tween(150, easing = FastOutSlowInEasing)) +
+                    expandVertically(animationSpec = tween(220, easing = FastOutSlowInEasing)),
+                exit = fadeOut(animationSpec = tween(90)) +
+                    shrinkVertically(animationSpec = tween(150, easing = FastOutSlowInEasing)),
+            ) {
                 Button(
                     onClick = onReviewMisses,
                     shape = RoundedCornerShape(18.dp),
@@ -1524,26 +1676,63 @@ private fun SessionFooter(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             val percent = if (attempts > 0) (100f * correct / attempts).roundToInt() else 0
-            Text(
-                text = "$correct / $attempts",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Black,
-            )
-            Text(
-                text = if (attempts > 0) "$percent%" else "Target $target",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            AnimatedContent(
+                targetState = "$correct / $attempts",
+                transitionSpec = {
+                    (fadeIn(animationSpec = tween(140, easing = FastOutSlowInEasing)) +
+                        slideInVertically(animationSpec = tween(180, easing = FastOutSlowInEasing)) { it / 3 })
+                        .togetherWith(
+                            fadeOut(animationSpec = tween(90)) +
+                                slideOutVertically(animationSpec = tween(140, easing = FastOutSlowInEasing)) { -it / 3 }
+                        )
+                },
+                label = "score-transition",
+            ) { score ->
+                Text(
+                    text = score,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Black,
+                )
+            }
+            AnimatedContent(
+                targetState = if (attempts > 0) "$percent%" else "Target $target",
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(140, easing = FastOutSlowInEasing))
+                        .togetherWith(fadeOut(animationSpec = tween(90)))
+                },
+                label = "percent-transition",
+            ) { value ->
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                if (adaptiveMode) {
-                    AdaptiveLevelStatus(levelIndex = levelIndex, showTextLabels = showTextLabels)
-                } else {
-                    LevelSelector(
-                        levelIndex = levelIndex,
-                        showTextLabels = showTextLabels,
-                        showTapTargets = showTapTargets,
-                        onLevelChange = onLevelChange,
-                    )
+                AnimatedContent(
+                    targetState = adaptiveMode to levelIndex,
+                    transitionSpec = {
+                        (fadeIn(animationSpec = tween(160, easing = FastOutSlowInEasing)) +
+                            slideInVertically(animationSpec = tween(220, easing = FastOutSlowInEasing)) { it / 2 } +
+                            scaleIn(animationSpec = tween(220, easing = FastOutSlowInEasing), initialScale = 0.94f))
+                            .togetherWith(
+                                fadeOut(animationSpec = tween(90)) +
+                                    slideOutVertically(animationSpec = tween(160, easing = FastOutSlowInEasing)) { -it / 2 } +
+                                    scaleOut(animationSpec = tween(140), targetScale = 0.96f)
+                            )
+                    },
+                    label = "level-status-transition",
+                ) { state ->
+                    if (state.first) {
+                        AdaptiveLevelStatus(levelIndex = state.second, showTextLabels = showTextLabels)
+                    } else {
+                        LevelSelector(
+                            levelIndex = state.second,
+                            showTextLabels = showTextLabels,
+                            showTapTargets = showTapTargets,
+                            onLevelChange = onLevelChange,
+                        )
+                    }
                 }
             }
             TextButton(
