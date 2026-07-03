@@ -16,6 +16,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -23,18 +24,17 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -46,7 +46,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -69,14 +68,18 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.json.JSONArray
 import org.json.JSONObject
@@ -144,7 +147,8 @@ private class TrainerStore(context: Context) {
     fun correct(): Int = prefs.getInt("correct", 0)
     fun attempts(): Int = prefs.getInt("attempts", 0)
     fun target(): Int = prefs.getInt("target", 25).coerceAtLeast(1)
-    fun revealNotes(): Boolean = prefs.getBoolean("reveal_notes", false)
+    fun preferTextLabels(): Boolean = prefs.getBoolean("prefer_text_labels", false)
+    fun describeAnswerAfterResult(): Boolean = prefs.getBoolean("describe_answer_after_result", false)
     fun adaptiveMode(): Boolean = prefs.getBoolean("adaptive_mode", false)
 
     fun saveProfileName(value: String) {
@@ -159,10 +163,16 @@ private class TrainerStore(context: Context) {
         prefs.edit().putInt("correct", correct).putInt("attempts", attempts).apply()
     }
 
-    fun saveSettings(target: Int, revealNotes: Boolean, adaptiveMode: Boolean) {
+    fun saveSettings(
+        target: Int,
+        preferTextLabels: Boolean,
+        describeAnswerAfterResult: Boolean,
+        adaptiveMode: Boolean,
+    ) {
         prefs.edit()
             .putInt("target", target.coerceAtLeast(1))
-            .putBoolean("reveal_notes", revealNotes)
+            .putBoolean("prefer_text_labels", preferTextLabels)
+            .putBoolean("describe_answer_after_result", describeAnswerAfterResult)
             .putBoolean("adaptive_mode", adaptiveMode)
             .apply()
     }
@@ -273,7 +283,8 @@ private fun BSharpNativeApp() {
     var correct by remember { mutableStateOf(store.correct()) }
     var attempts by remember { mutableStateOf(store.attempts()) }
     var target by remember { mutableStateOf(store.target()) }
-    var revealNotes by remember { mutableStateOf(store.revealNotes()) }
+    var preferTextLabels by remember { mutableStateOf(store.preferTextLabels()) }
+    var describeAnswerAfterResult by remember { mutableStateOf(store.describeAnswerAfterResult()) }
     var adaptiveMode by remember { mutableStateOf(store.adaptiveMode()) }
     var history by remember { mutableStateOf(store.loadHistory()) }
     var correctChord by remember { mutableStateOf(Chords.take(levelIndex + 1).random()) }
@@ -353,13 +364,14 @@ private fun BSharpNativeApp() {
         store.saveSession(correct, attempts)
     }
 
-    val onSaveSettings = { newName: String, newTarget: Int, newReveal: Boolean, newAdaptive: Boolean ->
+    val onSaveSettings = { newName: String, newTarget: Int, newPreferText: Boolean, newDescribe: Boolean, newAdaptive: Boolean ->
         profileName = newName.ifBlank { "Guest" }
         target = newTarget.coerceAtLeast(1)
-        revealNotes = newReveal
+        preferTextLabels = newPreferText
+        describeAnswerAfterResult = newDescribe
         adaptiveMode = newAdaptive
         store.saveProfileName(profileName)
-        store.saveSettings(target, revealNotes, adaptiveMode)
+        store.saveSettings(newTarget, newPreferText, newDescribe, newAdaptive)
         panel = AppPanel.Game
     }
 
@@ -399,7 +411,8 @@ private fun BSharpNativeApp() {
                     target = target,
                     attempts = attempts,
                     correct = correct,
-                    revealNotes = revealNotes,
+                    preferTextLabels = preferTextLabels,
+                    describeAnswerAfterResult = describeAnswerAfterResult,
                     onPlay = ::playCurrentChord,
                     onNext = { nextRound(true) },
                     onSelect = ::selectChord,
@@ -415,7 +428,8 @@ private fun BSharpNativeApp() {
                 AppPanel.Settings -> SettingsScreen(
                     profileName = profileName,
                     target = target,
-                    revealNotes = revealNotes,
+                    preferTextLabels = preferTextLabels,
+                    describeAnswerAfterResult = describeAnswerAfterResult,
                     adaptiveMode = adaptiveMode,
                     onSave = onSaveSettings,
                 )
@@ -455,35 +469,25 @@ private fun TopNavigation(
     Surface(
         tonalElevation = 4.dp,
         shadowElevation = 1.dp,
-        shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp),
+        shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+                .statusBarsPadding()
+                .padding(start = 12.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = "BSharp",
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Black,
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                Text(
-                    text = profileName,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.labelLarge,
-                )
-            }
+            Text(
+                text = "BSharp",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Black,
+            )
             Row(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .weight(1f)
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -494,6 +498,12 @@ private fun TopNavigation(
                 NavChip("Settings", current == AppPanel.Settings) { onPanelSelected(AppPanel.Settings) }
                 NavChip("About", current == AppPanel.About) { onPanelSelected(AppPanel.About) }
             }
+            Text(
+                text = profileName,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.labelSmall,
+            )
         }
     }
 }
@@ -514,8 +524,8 @@ private fun NavChip(label: String, active: Boolean, onClick: () -> Unit) {
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
         )
     }
 }
@@ -530,7 +540,8 @@ private fun GameScreen(
     target: Int,
     attempts: Int,
     correct: Int,
-    revealNotes: Boolean,
+    preferTextLabels: Boolean,
+    describeAnswerAfterResult: Boolean,
     onPlay: () -> Unit,
     onNext: () -> Unit,
     onSelect: (ChordDefinition) -> Unit,
@@ -538,11 +549,12 @@ private fun GameScreen(
 ) {
     Column(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         ControlCluster(
             canAnswer = audioStarted,
             answered = selectedChord != null,
+            showTextLabels = preferTextLabels,
             onPlay = onPlay,
             onNext = onNext,
         )
@@ -557,11 +569,16 @@ private fun GameScreen(
             activeChords = activeChords,
             correctChord = correctChord,
             selectedChord = selectedChord,
-            revealNotes = revealNotes || selectedChord != null,
+            showTextLabels = preferTextLabels,
+            describeAnswerAfterResult = describeAnswerAfterResult,
             onSelect = onSelect,
             modifier = Modifier.weight(1f),
         )
-        LevelSelector(levelIndex = levelIndex, onLevelChange = onLevelChange)
+        LevelSelector(
+            levelIndex = levelIndex,
+            showTextLabels = preferTextLabels,
+            onLevelChange = onLevelChange,
+        )
     }
 }
 
@@ -569,51 +586,203 @@ private fun GameScreen(
 private fun ControlCluster(
     canAnswer: Boolean,
     answered: Boolean,
+    showTextLabels: Boolean,
     onPlay: () -> Unit,
     onNext: () -> Unit,
 ) {
-    ElevatedCard(
-        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        shape = RoundedCornerShape(36.dp),
-        modifier = Modifier.fillMaxWidth(),
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(if (showTextLabels) 92.dp else 78.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Button(
-                onClick = onPlay,
-                shape = RoundedCornerShape(28.dp),
-                contentPadding = PaddingValues(horizontal = 30.dp, vertical = 18.dp),
-            ) {
-                Text("Play", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            }
-            Spacer(modifier = Modifier.width(18.dp))
-            FilledTonalButton(
-                onClick = onNext,
-                enabled = answered,
-                shape = RoundedCornerShape(28.dp),
-                contentPadding = PaddingValues(horizontal = 30.dp, vertical = 18.dp),
-            ) {
-                Text("Next", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-            }
-        }
-        val helper = when {
-            answered -> "Good. Tap Next for another sound."
-            canAnswer -> "Tap the matching color."
-            else -> "Tap Play first."
-        }
-        Text(
-            text = helper,
-            textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp),
+        ActionButton(
+            label = "Play",
+            mark = ResultMark.Play,
+            enabled = true,
+            filled = !canAnswer || !answered,
+            showTextLabels = showTextLabels,
+            onClick = onPlay,
+            modifier = Modifier.weight(1f),
         )
+        ActionButton(
+            label = "Next",
+            mark = ResultMark.Next,
+            enabled = answered,
+            filled = answered,
+            showTextLabels = showTextLabels,
+            onClick = onNext,
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+private enum class ResultMark {
+    Play,
+    Next,
+    Check,
+    Cross,
+}
+
+@Composable
+private fun ActionButton(
+    label: String,
+    mark: ResultMark,
+    enabled: Boolean,
+    filled: Boolean,
+    showTextLabels: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val containerColor = when {
+        !enabled -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.48f)
+        filled -> MaterialTheme.colorScheme.primaryContainer
+        else -> MaterialTheme.colorScheme.secondaryContainer
+    }
+    val contentColor = when {
+        !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.46f)
+        filled -> MaterialTheme.colorScheme.onPrimaryContainer
+        else -> MaterialTheme.colorScheme.onSecondaryContainer
+    }
+
+    Surface(
+        color = containerColor,
+        contentColor = contentColor,
+        tonalElevation = if (enabled) 6.dp else 0.dp,
+        shadowElevation = if (enabled) 3.dp else 0.dp,
+        shape = RoundedCornerShape(30.dp),
+        modifier = modifier
+            .fillMaxHeight()
+            .clip(RoundedCornerShape(30.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .semantics { contentDescription = label },
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            LogoMark(
+                mark = mark,
+                tint = contentColor,
+                modifier = Modifier.size(if (showTextLabels) 34.dp else 44.dp),
+            )
+            if (showTextLabels) {
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(label, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ResultBadge(
+    mark: ResultMark,
+    label: String,
+    color: Color,
+    showTextLabels: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        color = color,
+        contentColor = Color.White,
+        shape = CircleShape,
+        tonalElevation = 10.dp,
+        shadowElevation = 12.dp,
+        modifier = modifier,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(if (showTextLabels) 18.dp else 22.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center,
+        ) {
+            LogoMark(
+                mark = mark,
+                tint = Color.White,
+                modifier = Modifier.size(if (showTextLabels) 58.dp else 72.dp),
+            )
+            if (showTextLabels) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = label,
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Black,
+                    maxLines = 2,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun LogoMark(mark: ResultMark, tint: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val stroke = size.minDimension * 0.12f
+        when (mark) {
+            ResultMark.Play -> {
+                val path = Path().apply {
+                    moveTo(size.width * 0.34f, size.height * 0.22f)
+                    lineTo(size.width * 0.34f, size.height * 0.78f)
+                    lineTo(size.width * 0.78f, size.height * 0.5f)
+                    close()
+                }
+                drawPath(path = path, color = tint)
+            }
+            ResultMark.Next -> {
+                drawLine(
+                    color = tint,
+                    start = Offset(size.width * 0.34f, size.height * 0.24f),
+                    end = Offset(size.width * 0.62f, size.height * 0.5f),
+                    strokeWidth = stroke,
+                    cap = StrokeCap.Round,
+                )
+                drawLine(
+                    color = tint,
+                    start = Offset(size.width * 0.62f, size.height * 0.5f),
+                    end = Offset(size.width * 0.34f, size.height * 0.76f),
+                    strokeWidth = stroke,
+                    cap = StrokeCap.Round,
+                )
+                drawLine(
+                    color = tint,
+                    start = Offset(size.width * 0.72f, size.height * 0.24f),
+                    end = Offset(size.width * 0.72f, size.height * 0.76f),
+                    strokeWidth = stroke,
+                    cap = StrokeCap.Round,
+                )
+            }
+            ResultMark.Check -> {
+                val path = Path().apply {
+                    moveTo(size.width * 0.2f, size.height * 0.54f)
+                    lineTo(size.width * 0.42f, size.height * 0.74f)
+                    lineTo(size.width * 0.82f, size.height * 0.28f)
+                }
+                drawPath(
+                    path = path,
+                    color = tint,
+                    style = Stroke(width = stroke, cap = StrokeCap.Round, join = StrokeJoin.Round),
+                )
+            }
+            ResultMark.Cross -> {
+                drawLine(
+                    color = tint,
+                    start = Offset(size.width * 0.24f, size.height * 0.24f),
+                    end = Offset(size.width * 0.76f, size.height * 0.76f),
+                    strokeWidth = stroke,
+                    cap = StrokeCap.Round,
+                )
+                drawLine(
+                    color = tint,
+                    start = Offset(size.width * 0.76f, size.height * 0.24f),
+                    end = Offset(size.width * 0.24f, size.height * 0.76f),
+                    strokeWidth = stroke,
+                    cap = StrokeCap.Round,
+                )
+            }
+        }
     }
 }
 
@@ -622,7 +791,8 @@ private fun FlagGrid(
     activeChords: List<ChordDefinition>,
     correctChord: ChordDefinition,
     selectedChord: ChordDefinition?,
-    revealNotes: Boolean,
+    showTextLabels: Boolean,
+    describeAnswerAfterResult: Boolean,
     onSelect: (ChordDefinition) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -632,25 +802,41 @@ private fun FlagGrid(
             activeChords.size <= 2 -> 1
             else -> 2
         }.coerceAtLeast(1)
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(columns),
-            contentPadding = PaddingValues(vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+        Column(
             modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            items(activeChords, key = { it.key }) { chord ->
-                val isSelected = selectedChord?.key == chord.key
-                val isCorrect = correctChord.key == chord.key
-                FlagTarget(
-                    chord = chord,
-                    isSelected = isSelected,
-                    isCorrectAnswer = selectedChord != null && isCorrect,
-                    showResult = selectedChord != null,
-                    revealNotes = revealNotes,
-                    onClick = { onSelect(chord) },
-                    minHeight = if (columns == 1) 170.dp else 145.dp,
-                )
+            activeChords.chunked(columns).forEach { rowChords ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    rowChords.forEach { chord ->
+                        val isSelected = selectedChord?.key == chord.key
+                        val isCorrect = correctChord.key == chord.key
+                        FlagTarget(
+                            chord = chord,
+                            isSelected = isSelected,
+                            isCorrectAnswer = selectedChord != null && isCorrect,
+                            showResult = selectedChord != null,
+                            showTextLabels = showTextLabels,
+                            describeAnswerAfterResult = describeAnswerAfterResult,
+                            onClick = { onSelect(chord) },
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight(),
+                        )
+                    }
+                    repeat(columns - rowChords.size) {
+                        Spacer(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                        )
+                    }
+                }
             }
         }
     }
@@ -662,12 +848,13 @@ private fun FlagTarget(
     isSelected: Boolean,
     isCorrectAnswer: Boolean,
     showResult: Boolean,
-    revealNotes: Boolean,
+    showTextLabels: Boolean,
+    describeAnswerAfterResult: Boolean,
     onClick: () -> Unit,
-    minHeight: Dp,
+    modifier: Modifier = Modifier,
 ) {
     val scale by animateFloatAsState(
-        targetValue = if (isSelected) 0.98f else 1f,
+        targetValue = if (showResult && isCorrectAnswer) 1f else if (isSelected) 0.98f else 1f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
         label = "flag-scale",
     )
@@ -676,44 +863,85 @@ private fun FlagTarget(
         showResult && isSelected -> Color(0xFFE21B2D)
         else -> MaterialTheme.colorScheme.outline
     }
+    val borderWidth = when {
+        isCorrectAnswer -> 9.dp
+        showResult && isSelected -> 8.dp
+        else -> 3.dp
+    }
     val textColor = if (chord.key == "black" || chord.key == "brown" || chord.key == "blue") Color.White else Color.Black
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .height(minHeight)
+            .fillMaxHeight()
             .scale(scale)
-            .clip(RoundedCornerShape(30.dp))
+            .clip(RoundedCornerShape(34.dp))
             .background(chord.color)
-            .border(4.dp, borderColor, RoundedCornerShape(30.dp))
+            .border(borderWidth, borderColor, RoundedCornerShape(34.dp))
             .clickable(onClick = onClick)
             .semantics { contentDescription = chord.display + " flag" },
         contentAlignment = Alignment.Center,
     ) {
-        if (revealNotes) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(
-                    text = chord.notes.joinToString(" "),
-                    color = textColor,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Black,
-                )
-                Text(
-                    text = chord.chord,
-                    color = textColor.copy(alpha = 0.8f),
-                    style = MaterialTheme.typography.titleMedium,
-                )
-            }
-        }
-        if (showResult && (isCorrectAnswer || isSelected)) {
+        if (!showResult && showTextLabels) {
             Text(
-                text = if (isCorrectAnswer) "Correct" else "Try again",
+                text = chord.display,
                 color = textColor,
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Black,
+                textAlign = TextAlign.Center,
+            )
+        }
+        if (showResult && isCorrectAnswer) {
+            ResultBadge(
+                mark = ResultMark.Check,
+                label = "Correct",
+                color = Color(0xFF00A83B),
+                showTextLabels = showTextLabels,
+                modifier = Modifier.size(if (showTextLabels) 156.dp else 132.dp),
+            )
+        } else if (showResult && isSelected) {
+            ResultBadge(
+                mark = ResultMark.Cross,
+                label = "Try again",
+                color = Color(0xFFE21B2D),
+                showTextLabels = showTextLabels,
+                modifier = Modifier.size(if (showTextLabels) 148.dp else 124.dp),
+            )
+        }
+        if (describeAnswerAfterResult && showResult && isSelected && isCorrectAnswer) {
+            AnswerDescription(
+                chord = chord,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(12.dp),
+                    .padding(horizontal = 14.dp, vertical = 12.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AnswerDescription(chord: ChordDefinition, modifier: Modifier = Modifier) {
+    Surface(
+        color = Color.White.copy(alpha = 0.78f),
+        contentColor = Color.Black,
+        shape = CircleShape,
+        modifier = modifier,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = chord.notes.joinToString(" "),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Black,
+            )
+            Text(
+                text = chord.chord,
+                style = MaterialTheme.typography.titleMedium,
+                color = Color.Black.copy(alpha = 0.72f),
+                fontWeight = FontWeight.Bold,
             )
         }
     }
@@ -743,20 +971,44 @@ private fun LevelGuidance(correct: Int, attempts: Int, levelIndex: Int) {
 }
 
 @Composable
-private fun LevelSelector(levelIndex: Int, onLevelChange: (Int) -> Unit) {
+private fun LevelSwatch(chord: ChordDefinition) {
+    Box(
+        modifier = Modifier
+            .size(18.dp)
+            .clip(CircleShape)
+            .background(chord.color)
+            .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
+    )
+}
+
+@Composable
+private fun LevelSelector(
+    levelIndex: Int,
+    showTextLabels: Boolean,
+    onLevelChange: (Int) -> Unit,
+) {
     var expanded by remember { mutableStateOf(false) }
+    val current = Chords[levelIndex]
     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
         OutlinedButton(
             onClick = { expanded = true },
             shape = RoundedCornerShape(18.dp),
         ) {
-            Text("Level ${levelIndex}: ${Chords[levelIndex].display} (${Chords[levelIndex].notes.joinToString(" ")})")
+            LevelSwatch(current)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(if (showTextLabels) "Level $levelIndex: ${current.display}" else "Level $levelIndex")
         }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             Chords.drop(1).forEachIndexed { offset, chord ->
                 val index = offset + 1
                 DropdownMenuItem(
-                    text = { Text("Level $index: ${chord.display} (${chord.notes.joinToString(" ")})") },
+                    text = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            LevelSwatch(chord)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(if (showTextLabels) "Level $index: ${chord.display}" else "Level $index")
+                        }
+                    },
                     onClick = {
                         expanded = false
                         onLevelChange(index)
@@ -911,13 +1163,15 @@ private fun DashboardMetric(label: String, value: String, modifier: Modifier = M
 private fun SettingsScreen(
     profileName: String,
     target: Int,
-    revealNotes: Boolean,
+    preferTextLabels: Boolean,
+    describeAnswerAfterResult: Boolean,
     adaptiveMode: Boolean,
-    onSave: (String, Int, Boolean, Boolean) -> Unit,
+    onSave: (String, Int, Boolean, Boolean, Boolean) -> Unit,
 ) {
     var localName by remember(profileName) { mutableStateOf(profileName) }
     var localTarget by remember(target) { mutableStateOf(target.toString()) }
-    var localReveal by remember(revealNotes) { mutableStateOf(revealNotes) }
+    var localPreferText by remember(preferTextLabels) { mutableStateOf(preferTextLabels) }
+    var localDescribe by remember(describeAnswerAfterResult) { mutableStateOf(describeAnswerAfterResult) }
     var localAdaptive by remember(adaptiveMode) { mutableStateOf(adaptiveMode) }
 
     Column(
@@ -942,11 +1196,12 @@ private fun SettingsScreen(
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
-        SettingToggle("Show chord notes on flags", localReveal) { localReveal = it }
+        SettingToggle("Prefer text labels", localPreferText) { localPreferText = it }
+        SettingToggle("Describe answer after result", localDescribe) { localDescribe = it }
         SettingToggle("Favor missed colors", localAdaptive) { localAdaptive = it }
         Button(
             onClick = {
-                onSave(localName, localTarget.toIntOrNull() ?: target, localReveal, localAdaptive)
+                onSave(localName, localTarget.toIntOrNull() ?: target, localPreferText, localDescribe, localAdaptive)
             },
             shape = RoundedCornerShape(24.dp),
             modifier = Modifier.fillMaxWidth(),
