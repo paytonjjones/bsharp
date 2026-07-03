@@ -235,6 +235,25 @@ private class TrainerStore(private val context: Context) {
         prefs.edit().putInt("correct", correct).putInt("attempts", attempts).apply()
     }
 
+    fun loadMisses(): Map<String, Int> {
+        val raw = prefs.getString("misses", "{}") ?: "{}"
+        val item = runCatching { JSONObject(raw) }.getOrElse { JSONObject() }
+        return buildMap {
+            Chords.forEach { chord ->
+                val count = item.optInt(chord.key, 0)
+                if (count > 0) put(chord.key, count)
+            }
+        }
+    }
+
+    fun saveMisses(misses: Map<String, Int>) {
+        val item = JSONObject()
+        misses.forEach { (key, count) ->
+            if (count > 0) item.put(key, count)
+        }
+        prefs.edit().putString("misses", item.toString()).apply()
+    }
+
     fun saveSettings(
         target: Int,
         preferTextLabels: Boolean,
@@ -366,12 +385,30 @@ private fun BSharpNativeApp() {
     var showTapTargets by remember { mutableStateOf(store.showTapTargets()) }
     var adaptiveMode by remember { mutableStateOf(store.adaptiveMode()) }
     var history by remember { mutableStateOf(store.loadHistory()) }
+    var missedCounts by remember { mutableStateOf(store.loadMisses()) }
+    var reviewingMisses by remember { mutableStateOf(false) }
+    var topBarRevealed by remember { mutableStateOf(false) }
     var correctChord by remember { mutableStateOf(Chords.take(levelIndex + 1).random()) }
     var selectedChord by remember { mutableStateOf<ChordDefinition?>(null) }
     var audioStarted by remember { mutableStateOf(false) }
     var showResetDialog by remember { mutableStateOf(false) }
 
     fun activeChords(): List<ChordDefinition> = Chords.take(levelIndex + 1)
+
+    fun saveMisses(misses: Map<String, Int>) {
+        val cleaned = misses.filterValues { it > 0 }
+        missedCounts = cleaned
+        store.saveMisses(cleaned)
+        if (cleaned.isEmpty()) reviewingMisses = false
+    }
+
+    fun chooseReviewChord(misses: Map<String, Int> = missedCounts): ChordDefinition? {
+        val active = activeChords()
+        val weighted = active.flatMap { chord ->
+            List(misses[chord.key] ?: 0) { chord }
+        }
+        return weighted.takeIf { it.isNotEmpty() }?.random()
+    }
 
     fun chooseNextChord(favorChord: ChordDefinition? = null): ChordDefinition {
         val active = activeChords()
@@ -391,6 +428,8 @@ private fun BSharpNativeApp() {
         if (saveHistory) archiveSession()
         correct = 0
         attempts = 0
+        saveMisses(emptyMap())
+        reviewingMisses = false
         selectedChord = null
         audioStarted = false
         store.saveSession(correct, attempts)
@@ -404,6 +443,8 @@ private fun BSharpNativeApp() {
         store.saveLevel(index)
         correct = 0
         attempts = 0
+        saveMisses(emptyMap())
+        reviewingMisses = false
         selectedChord = null
         audioStarted = false
         store.saveSession(correct, attempts)
@@ -421,7 +462,11 @@ private fun BSharpNativeApp() {
         } else {
             null
         }
-        val nextChord = chooseNextChord(missedChord)
+        val nextChord = if (reviewingMisses) {
+            chooseReviewChord() ?: chooseNextChord()
+        } else {
+            chooseNextChord(missedChord)
+        }
         selectedChord = null
         audioStarted = false
         correctChord = nextChord
@@ -438,15 +483,43 @@ private fun BSharpNativeApp() {
         }
         if (selectedChord != null) return
         selectedChord = chord
-        attempts += 1
-        if (chord.key == correctChord.key) correct += 1
-        store.saveSession(correct, attempts)
+        val answerWasCorrect = chord.key == correctChord.key
+        if (reviewingMisses) {
+            if (answerWasCorrect) {
+                val remaining = (missedCounts[correctChord.key] ?: 0) - 1
+                saveMisses(missedCounts + (correctChord.key to remaining))
+            }
+        } else {
+            attempts += 1
+            if (answerWasCorrect) {
+                correct += 1
+            } else {
+                saveMisses(missedCounts + (correctChord.key to ((missedCounts[correctChord.key] ?: 0) + 1)))
+            }
+            store.saveSession(correct, attempts)
+        }
+    }
+
+    fun reviewMisses() {
+        val reviewChord = chooseReviewChord() ?: return
+        reviewingMisses = true
+        selectedChord = null
+        correctChord = reviewChord
+        audioStarted = true
+        audio.playChord(reviewChord)
     }
 
     LaunchedEffect(selectedChord, autoAdvanceAfterAnswer, panel) {
         if (panel == AppPanel.Game && autoAdvanceAfterAnswer && selectedChord != null) {
             delay(3_000)
             if (selectedChord != null) nextRound(true)
+        }
+    }
+
+    LaunchedEffect(topBarRevealed, panel, audioStarted) {
+        if (topBarRevealed && panel == AppPanel.Game && audioStarted) {
+            delay(4_000)
+            topBarRevealed = false
         }
     }
 
@@ -468,13 +541,16 @@ private fun BSharpNativeApp() {
 
     Scaffold(
         topBar = {
-            AnimatedVisibility(visible = panel != AppPanel.Game || !audioStarted) {
+            AnimatedVisibility(visible = panel != AppPanel.Game || !audioStarted || topBarRevealed) {
                 TopNavigation(
                     current = panel,
                     profileName = profileName,
                     avatar = avatar,
                     showTapTargets = showTapTargets,
-                    onPanelSelected = { panel = it },
+                    onPanelSelected = {
+                        topBarRevealed = false
+                        panel = it
+                    },
                 )
             }
         },
@@ -516,12 +592,15 @@ private fun BSharpNativeApp() {
                     target = target,
                     attempts = attempts,
                     correct = correct,
+                    missedCount = missedCounts.values.sum(),
+                    reviewingMisses = reviewingMisses,
                     preferTextLabels = preferTextLabels,
                     describeAnswerAfterResult = describeAnswerAfterResult,
                     autoAdvanceAfterAnswer = autoAdvanceAfterAnswer,
                     showTapTargets = showTapTargets,
                     onPlay = ::playCurrentChord,
                     onNext = { nextRound(true) },
+                    onReviewMisses = ::reviewMisses,
                     onSelect = ::selectChord,
                 )
                 AppPanel.Trainer -> TrainerScreen(onPreview = { audio.playChord(it) })
@@ -543,6 +622,17 @@ private fun BSharpNativeApp() {
                     onSave = onSaveSettings,
                 )
                 AppPanel.About -> AboutScreen()
+            }
+            if (panel == AppPanel.Game && audioStarted && !topBarRevealed) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .height(28.dp)
+                        .tapTargetOverlay(showTapTargets, Color(0xFF00D7FF))
+                        .clickable { topBarRevealed = true }
+                        .semantics { contentDescription = "Show navigation" },
+                )
             }
         }
     }
@@ -666,12 +756,15 @@ private fun GameScreen(
     target: Int,
     attempts: Int,
     correct: Int,
+    missedCount: Int,
+    reviewingMisses: Boolean,
     preferTextLabels: Boolean,
     describeAnswerAfterResult: Boolean,
     autoAdvanceAfterAnswer: Boolean,
     showTapTargets: Boolean,
     onPlay: () -> Unit,
     onNext: () -> Unit,
+    onReviewMisses: () -> Unit,
     onSelect: (ChordDefinition) -> Unit,
 ) {
     Column(
@@ -692,6 +785,10 @@ private fun GameScreen(
                 correct = correct,
                 attempts = attempts,
                 levelIndex = levelIndex,
+                missedCount = missedCount,
+                reviewingMisses = reviewingMisses,
+                showTapTargets = showTapTargets,
+                onReviewMisses = onReviewMisses,
             )
         }
         FlagGrid(
@@ -1090,25 +1187,50 @@ private fun AnswerDescription(chord: ChordDefinition, modifier: Modifier = Modif
 }
 
 @Composable
-private fun LevelGuidance(correct: Int, attempts: Int, levelIndex: Int) {
+private fun LevelGuidance(
+    correct: Int,
+    attempts: Int,
+    levelIndex: Int,
+    missedCount: Int,
+    reviewingMisses: Boolean,
+    showTapTargets: Boolean,
+    onReviewMisses: () -> Unit,
+) {
     val perfect = attempts > 0 && correct == attempts
     val message = when {
-        !perfect -> "Session target reached. Review missed colors before adding a new one."
+        reviewingMisses -> "Review mode. Correct missed colors to clear them from this session."
+        missedCount > 0 -> "Session target reached. Review missed colors before adding a new one."
+        !perfect -> "Missed colors reviewed. Keep this level steady before adding a new one."
         levelIndex < Chords.lastIndex -> "Perfect session. Keep this level steady before adding ${Chords[levelIndex + 1].display}."
         else -> "All levels are available. Keep practicing to maintain accuracy."
     }
     Surface(
-        color = if (perfect) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
-        contentColor = if (perfect) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+        color = if (perfect && missedCount == 0) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer,
+        contentColor = if (perfect && missedCount == 0) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer,
         shape = RoundedCornerShape(24.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Text(
-            text = message,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
+        Column(
             modifier = Modifier.padding(16.dp),
-        )
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = message,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            if (missedCount > 0 && !reviewingMisses) {
+                Button(
+                    onClick = onReviewMisses,
+                    shape = RoundedCornerShape(18.dp),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .tapTargetOverlay(showTapTargets, Color(0xFF00D7FF)),
+                ) {
+                    Text("Review $missedCount missed")
+                }
+            }
+        }
     }
 }
 
