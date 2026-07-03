@@ -89,6 +89,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -578,12 +579,13 @@ private fun BSharpNativeApp() {
         if (panel == AppPanel.Game && autoAdvanceAfterAnswer && answeredChord != null) {
             val delayMillis = autoAdvanceDelayMillis(attempts)
             autoAdvanceTotalMillis = delayMillis
+            val startNanos = withFrameNanos { it }
             var remainingMillis = delayMillis
-            while (remainingMillis > 0L && selectedChord == answeredChord) {
+            while (selectedChord == answeredChord && remainingMillis > 0L) {
                 autoAdvanceRemainingMillis = remainingMillis
-                val tickMillis = minOf(50L, remainingMillis)
-                delay(tickMillis)
-                remainingMillis -= tickMillis
+                val frameNanos = withFrameNanos { it }
+                val elapsedMillis = ((frameNanos - startNanos) / 1_000_000L).coerceAtLeast(0L)
+                remainingMillis = (delayMillis - elapsedMillis).coerceAtLeast(0L)
             }
             autoAdvanceRemainingMillis = 0L
             autoAdvanceTotalMillis = 0L
@@ -1315,8 +1317,8 @@ private fun FlagTarget(
     modifier: Modifier = Modifier,
 ) {
     val scale by animateFloatAsState(
-        targetValue = if (showResult && isCorrectAnswer) 1f else if (isSelected) 0.98f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMediumLow),
+        targetValue = if (isSelected) 0.992f else 1f,
+        animationSpec = tween(260, easing = FastOutSlowInEasing),
         label = "flag-scale",
     )
     val borderColor = when {
@@ -1336,12 +1338,12 @@ private fun FlagTarget(
     )
     val animatedBorderWidth by animateDpAsState(
         targetValue = borderWidth,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
+        animationSpec = tween(260, easing = FastOutSlowInEasing),
         label = "flag-border-width",
     )
     val cornerRadius by animateDpAsState(
         targetValue = if (showResult) 42.dp else 34.dp,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMediumLow),
+        animationSpec = tween(320, easing = FastOutSlowInEasing),
         label = "flag-corner-radius",
     )
     val tileColor by animateColorAsState(
@@ -1387,33 +1389,33 @@ private fun FlagTarget(
             }
             AnimatedVisibility(
                 visible = showResult && isCorrectAnswer,
-                enter = fadeIn(animationSpec = tween(120, easing = FastOutSlowInEasing)) +
+                enter = fadeIn(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
                     scaleIn(
-                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
-                        initialScale = 0.72f,
+                        animationSpec = tween(320, easing = FastOutSlowInEasing),
+                        initialScale = 0.86f,
                     ),
-                exit = fadeOut(animationSpec = tween(90)) +
-                    scaleOut(animationSpec = tween(120), targetScale = 0.92f),
+                exit = fadeOut(animationSpec = tween(140)) +
+                    scaleOut(animationSpec = tween(180, easing = FastOutSlowInEasing), targetScale = 0.94f),
             ) {
                 ResultBadge(
                     mark = ResultMark.Check,
                     label = "Correct",
                     color = Color(0xFF00A83B),
                     showTextLabels = showTextLabels,
-                    countdownProgress = if (showResult) autoAdvanceProgress else 0f,
+                    countdownProgress = if (isSelected && isCorrectAnswer) autoAdvanceProgress else 0f,
                     countdownSeconds = autoAdvanceSeconds,
                     modifier = Modifier.size(if (showTextLabels) 156.dp else 132.dp),
                 )
             }
             AnimatedVisibility(
                 visible = showResult && isSelected && !isCorrectAnswer,
-                enter = fadeIn(animationSpec = tween(120, easing = FastOutSlowInEasing)) +
+                enter = fadeIn(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
                     scaleIn(
-                        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
-                        initialScale = 0.72f,
+                        animationSpec = tween(320, easing = FastOutSlowInEasing),
+                        initialScale = 0.86f,
                     ),
-                exit = fadeOut(animationSpec = tween(90)) +
-                    scaleOut(animationSpec = tween(120), targetScale = 0.92f),
+                exit = fadeOut(animationSpec = tween(140)) +
+                    scaleOut(animationSpec = tween(180, easing = FastOutSlowInEasing), targetScale = 0.94f),
             ) {
                 ResultBadge(
                     mark = ResultMark.Cross,
