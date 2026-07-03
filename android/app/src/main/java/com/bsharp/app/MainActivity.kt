@@ -6,6 +6,10 @@ import android.content.res.AssetManager
 import android.media.MediaPlayer
 import android.os.Build
 import android.os.Bundle
+import android.view.View
+import android.view.WindowInsets
+import android.view.WindowInsetsController
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -35,6 +39,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -88,12 +93,39 @@ import kotlin.math.roundToInt
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
+        enterImmersiveMode()
         super.onCreate(savedInstanceState)
 
         setContent {
             BSharpTheme {
                 BSharpNativeApp()
             }
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) enterImmersiveMode()
+    }
+
+    private fun enterImmersiveMode() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            window.attributes = window.attributes.apply {
+                layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+            }
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.insetsController?.let { controller ->
+                controller.hide(WindowInsets.Type.statusBars())
+                controller.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            window.decorView.systemUiVisibility =
+                View.SYSTEM_UI_FLAG_FULLSCREEN or
+                    View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                    View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
         }
     }
 }
@@ -377,11 +409,13 @@ private fun BSharpNativeApp() {
 
     Scaffold(
         topBar = {
-            TopNavigation(
-                current = panel,
-                profileName = profileName,
-                onPanelSelected = { panel = it },
-            )
+            AnimatedVisibility(visible = panel != AppPanel.Game || !audioStarted) {
+                TopNavigation(
+                    current = panel,
+                    profileName = profileName,
+                    onPanelSelected = { panel = it },
+                )
+            }
         },
         bottomBar = {
             if (panel == AppPanel.Game) {
@@ -389,6 +423,9 @@ private fun BSharpNativeApp() {
                     correct = correct,
                     attempts = attempts,
                     target = target,
+                    levelIndex = levelIndex,
+                    showTextLabels = preferTextLabels,
+                    onLevelChange = ::changeLevel,
                     onReset = { showResetDialog = true },
                 )
             }
@@ -396,10 +433,16 @@ private fun BSharpNativeApp() {
         containerColor = MaterialTheme.colorScheme.surface,
     ) { padding ->
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .padding(horizontal = 14.dp)
+            modifier = if (panel == AppPanel.Game) {
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+            } else {
+                Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = 14.dp)
+            }
         ) {
             when (panel) {
                 AppPanel.Game -> GameScreen(
@@ -416,7 +459,6 @@ private fun BSharpNativeApp() {
                     onPlay = ::playCurrentChord,
                     onNext = { nextRound(true) },
                     onSelect = ::selectChord,
-                    onLevelChange = ::changeLevel,
                 )
                 AppPanel.Trainer -> TrainerScreen(onPreview = { audio.playChord(it) })
                 AppPanel.Stats -> StatsScreen(
@@ -498,12 +540,7 @@ private fun TopNavigation(
                 NavChip("Settings", current == AppPanel.Settings) { onPanelSelected(AppPanel.Settings) }
                 NavChip("About", current == AppPanel.About) { onPanelSelected(AppPanel.About) }
             }
-            Text(
-                text = profileName,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                style = MaterialTheme.typography.labelSmall,
-            )
+            ProfileChip(profileName)
         }
     }
 }
@@ -531,6 +568,25 @@ private fun NavChip(label: String, active: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
+private fun ProfileChip(profileName: String) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        shape = CircleShape,
+        modifier = Modifier.widthIn(min = 58.dp, max = 92.dp),
+    ) {
+        Text(
+            text = profileName,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.labelMedium,
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+        )
+    }
+}
+
+@Composable
 private fun GameScreen(
     activeChords: List<ChordDefinition>,
     correctChord: ChordDefinition,
@@ -545,7 +601,6 @@ private fun GameScreen(
     onPlay: () -> Unit,
     onNext: () -> Unit,
     onSelect: (ChordDefinition) -> Unit,
-    onLevelChange: (Int) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -574,11 +629,6 @@ private fun GameScreen(
             onSelect = onSelect,
             modifier = Modifier.weight(1f),
         )
-        LevelSelector(
-            levelIndex = levelIndex,
-            showTextLabels = preferTextLabels,
-            onLevelChange = onLevelChange,
-        )
     }
 }
 
@@ -593,8 +643,9 @@ private fun ControlCluster(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(if (showTextLabels) 92.dp else 78.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+            .height(if (showTextLabels) 92.dp else 78.dp)
+            .padding(horizontal = 18.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         ActionButton(
             label = "Play",
@@ -732,27 +783,20 @@ private fun LogoMark(mark: ResultMark, tint: Color, modifier: Modifier = Modifie
                 drawPath(path = path, color = tint)
             }
             ResultMark.Next -> {
-                drawLine(
-                    color = tint,
-                    start = Offset(size.width * 0.34f, size.height * 0.24f),
-                    end = Offset(size.width * 0.62f, size.height * 0.5f),
-                    strokeWidth = stroke,
-                    cap = StrokeCap.Round,
-                )
-                drawLine(
-                    color = tint,
-                    start = Offset(size.width * 0.62f, size.height * 0.5f),
-                    end = Offset(size.width * 0.34f, size.height * 0.76f),
-                    strokeWidth = stroke,
-                    cap = StrokeCap.Round,
-                )
-                drawLine(
-                    color = tint,
-                    start = Offset(size.width * 0.72f, size.height * 0.24f),
-                    end = Offset(size.width * 0.72f, size.height * 0.76f),
-                    strokeWidth = stroke,
-                    cap = StrokeCap.Round,
-                )
+                val first = Path().apply {
+                    moveTo(size.width * 0.2f, size.height * 0.22f)
+                    lineTo(size.width * 0.2f, size.height * 0.78f)
+                    lineTo(size.width * 0.5f, size.height * 0.5f)
+                    close()
+                }
+                val second = Path().apply {
+                    moveTo(size.width * 0.48f, size.height * 0.22f)
+                    lineTo(size.width * 0.48f, size.height * 0.78f)
+                    lineTo(size.width * 0.78f, size.height * 0.5f)
+                    close()
+                }
+                drawPath(path = first, color = tint)
+                drawPath(path = second, color = tint)
             }
             ResultMark.Check -> {
                 val path = Path().apply {
@@ -804,14 +848,12 @@ private fun FlagGrid(
         }.coerceAtLeast(1)
         Column(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             activeChords.chunked(columns).forEach { rowChords ->
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     rowChords.forEach { chord ->
                         val isSelected = selectedChord?.key == chord.key
@@ -874,47 +916,54 @@ private fun FlagTarget(
         modifier = modifier
             .fillMaxWidth()
             .fillMaxHeight()
-            .scale(scale)
-            .clip(RoundedCornerShape(34.dp))
-            .background(chord.color)
-            .border(borderWidth, borderColor, RoundedCornerShape(34.dp))
             .clickable(onClick = onClick)
             .semantics { contentDescription = chord.display + " flag" },
         contentAlignment = Alignment.Center,
     ) {
-        if (!showResult && showTextLabels) {
-            Text(
-                text = chord.display,
-                color = textColor,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Black,
-                textAlign = TextAlign.Center,
-            )
-        }
-        if (showResult && isCorrectAnswer) {
-            ResultBadge(
-                mark = ResultMark.Check,
-                label = "Correct",
-                color = Color(0xFF00A83B),
-                showTextLabels = showTextLabels,
-                modifier = Modifier.size(if (showTextLabels) 156.dp else 132.dp),
-            )
-        } else if (showResult && isSelected) {
-            ResultBadge(
-                mark = ResultMark.Cross,
-                label = "Try again",
-                color = Color(0xFFE21B2D),
-                showTextLabels = showTextLabels,
-                modifier = Modifier.size(if (showTextLabels) 148.dp else 124.dp),
-            )
-        }
-        if (describeAnswerAfterResult && showResult && isSelected && isCorrectAnswer) {
-            AnswerDescription(
-                chord = chord,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(horizontal = 14.dp, vertical = 12.dp),
-            )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 18.dp, vertical = 5.dp)
+                .scale(scale)
+                .clip(RoundedCornerShape(34.dp))
+                .background(chord.color)
+                .border(borderWidth, borderColor, RoundedCornerShape(34.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (!showResult && showTextLabels) {
+                Text(
+                    text = chord.display,
+                    color = textColor,
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Black,
+                    textAlign = TextAlign.Center,
+                )
+            }
+            if (showResult && isCorrectAnswer) {
+                ResultBadge(
+                    mark = ResultMark.Check,
+                    label = "Correct",
+                    color = Color(0xFF00A83B),
+                    showTextLabels = showTextLabels,
+                    modifier = Modifier.size(if (showTextLabels) 156.dp else 132.dp),
+                )
+            } else if (showResult && isSelected) {
+                ResultBadge(
+                    mark = ResultMark.Cross,
+                    label = "Try again",
+                    color = Color(0xFFE21B2D),
+                    showTextLabels = showTextLabels,
+                    modifier = Modifier.size(if (showTextLabels) 148.dp else 124.dp),
+                )
+            }
+            if (describeAnswerAfterResult && showResult && isSelected && isCorrectAnswer) {
+                AnswerDescription(
+                    chord = chord,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                )
+            }
         }
     }
 }
@@ -986,10 +1035,11 @@ private fun LevelSelector(
     levelIndex: Int,
     showTextLabels: Boolean,
     onLevelChange: (Int) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     var expanded by remember { mutableStateOf(false) }
     val current = Chords[levelIndex]
-    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+    Box(modifier = modifier, contentAlignment = Alignment.Center) {
         OutlinedButton(
             onClick = { expanded = true },
             shape = RoundedCornerShape(18.dp),
@@ -1020,7 +1070,15 @@ private fun LevelSelector(
 }
 
 @Composable
-private fun SessionFooter(correct: Int, attempts: Int, target: Int, onReset: () -> Unit) {
+private fun SessionFooter(
+    correct: Int,
+    attempts: Int,
+    target: Int,
+    levelIndex: Int,
+    showTextLabels: Boolean,
+    onLevelChange: (Int) -> Unit,
+    onReset: () -> Unit,
+) {
     Surface(
         tonalElevation = 6.dp,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
@@ -1028,9 +1086,10 @@ private fun SessionFooter(correct: Int, attempts: Int, target: Int, onReset: () 
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 18.dp, vertical = 12.dp),
+                .navigationBarsPadding()
+                .padding(horizontal = 18.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             val percent = if (attempts > 0) (100f * correct / attempts).roundToInt() else 0
             Text(
@@ -1043,7 +1102,12 @@ private fun SessionFooter(correct: Int, attempts: Int, target: Int, onReset: () 
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(modifier = Modifier.weight(1f))
+            LevelSelector(
+                levelIndex = levelIndex,
+                showTextLabels = showTextLabels,
+                onLevelChange = onLevelChange,
+                modifier = Modifier.weight(1f),
+            )
             TextButton(onClick = onReset) {
                 Text("Reset")
             }
