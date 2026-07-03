@@ -35,6 +35,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -205,6 +206,15 @@ private fun Modifier.tapTargetOverlay(show: Boolean, color: Color = Color(0xFFFF
 private class TrainerStore(private val context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("bsharp_native_state", Context.MODE_PRIVATE)
 
+    init {
+        if (!prefs.getBoolean("adaptive_default_v2_applied", false)) {
+            prefs.edit()
+                .putBoolean("adaptive_mode", true)
+                .putBoolean("adaptive_default_v2_applied", true)
+                .apply()
+        }
+    }
+
     fun profileName(): String {
         val saved = prefs.getString("profile_name", null)?.trim().orEmpty()
         return saved.takeIf { it.isNotBlank() && it != "Guest" } ?: defaultProfileName(context)
@@ -218,7 +228,7 @@ private class TrainerStore(private val context: Context) {
     fun describeAnswerAfterResult(): Boolean = prefs.getBoolean("describe_answer_after_result", false)
     fun autoAdvanceAfterAnswer(): Boolean = prefs.getBoolean("auto_advance_after_answer", true)
     fun showTapTargets(): Boolean = prefs.getBoolean("show_tap_targets", false)
-    fun adaptiveMode(): Boolean = prefs.getBoolean("adaptive_mode", false)
+    fun adaptiveMode(): Boolean = prefs.getBoolean("adaptive_mode", true)
 
     fun saveProfile(value: String, avatar: String) {
         prefs.edit()
@@ -412,16 +422,40 @@ private fun BSharpNativeApp() {
 
     fun chooseNextChord(favorChord: ChordDefinition? = null): ChordDefinition {
         val active = activeChords()
-        if (adaptiveMode && favorChord != null && active.any { it.key == favorChord.key }) {
-            return favorChord
+        if (!adaptiveMode) return active.random()
+
+        val weighted = buildList {
+            active.forEach { chord ->
+                add(chord)
+                repeat((missedCounts[chord.key] ?: 0).coerceAtMost(4)) {
+                    add(chord)
+                }
+            }
+            if (favorChord != null && active.any { it.key == favorChord.key }) {
+                repeat(3) { add(favorChord) }
+            }
         }
-        return active.random()
+        return weighted.random()
     }
 
     fun archiveSession() {
         if (attempts <= 0) return
         store.appendHistory(HistoryEntry(System.currentTimeMillis(), levelIndex, correct, attempts))
         history = store.loadHistory()
+    }
+
+    fun advanceAdaptiveLevelIfReady(): Boolean {
+        if (!adaptiveMode || reviewingMisses || attempts < target || correct != attempts || missedCounts.isNotEmpty()) return false
+        if (levelIndex >= Chords.lastIndex) return false
+        archiveSession()
+        levelIndex += 1
+        store.saveLevel(levelIndex)
+        correct = 0
+        attempts = 0
+        selectedChord = null
+        audioStarted = false
+        store.saveSession(correct, attempts)
+        return true
     }
 
     fun resetSession(saveHistory: Boolean) {
@@ -457,12 +491,15 @@ private fun BSharpNativeApp() {
     }
 
     fun nextRound(autoPlay: Boolean = true) {
+        val levelAdvanced = advanceAdaptiveLevelIfReady()
         val missedChord = if (selectedChord != null && selectedChord?.key != correctChord.key) {
             correctChord
         } else {
             null
         }
-        val nextChord = if (reviewingMisses) {
+        val nextChord = if (levelAdvanced) {
+            chooseNextChord()
+        } else if (reviewingMisses) {
             chooseReviewChord() ?: chooseNextChord()
         } else {
             chooseNextChord(missedChord)
@@ -516,6 +553,12 @@ private fun BSharpNativeApp() {
         }
     }
 
+    LaunchedEffect(adaptiveMode, attempts, correct, missedCounts, levelIndex, target) {
+        if (selectedChord == null && !audioStarted && advanceAdaptiveLevelIfReady()) {
+            correctChord = chooseNextChord()
+        }
+    }
+
     LaunchedEffect(topBarRevealed, panel, audioStarted) {
         if (topBarRevealed && panel == AppPanel.Game && audioStarted) {
             delay(4_000)
@@ -563,6 +606,7 @@ private fun BSharpNativeApp() {
                     levelIndex = levelIndex,
                     showTextLabels = preferTextLabels,
                     showTapTargets = showTapTargets,
+                    adaptiveMode = adaptiveMode,
                     onLevelChange = ::changeLevel,
                     onReset = { showResetDialog = true },
                 )
@@ -598,6 +642,7 @@ private fun BSharpNativeApp() {
                     describeAnswerAfterResult = describeAnswerAfterResult,
                     autoAdvanceAfterAnswer = autoAdvanceAfterAnswer,
                     showTapTargets = showTapTargets,
+                    adaptiveMode = adaptiveMode,
                     onPlay = ::playCurrentChord,
                     onNext = { nextRound(true) },
                     onReviewMisses = ::reviewMisses,
@@ -762,6 +807,7 @@ private fun GameScreen(
     describeAnswerAfterResult: Boolean,
     autoAdvanceAfterAnswer: Boolean,
     showTapTargets: Boolean,
+    adaptiveMode: Boolean,
     onPlay: () -> Unit,
     onNext: () -> Unit,
     onReviewMisses: () -> Unit,
@@ -787,6 +833,7 @@ private fun GameScreen(
                 levelIndex = levelIndex,
                 missedCount = missedCount,
                 reviewingMisses = reviewingMisses,
+                adaptiveMode = adaptiveMode,
                 showTapTargets = showTapTargets,
                 onReviewMisses = onReviewMisses,
             )
@@ -1193,15 +1240,20 @@ private fun LevelGuidance(
     levelIndex: Int,
     missedCount: Int,
     reviewingMisses: Boolean,
+    adaptiveMode: Boolean,
     showTapTargets: Boolean,
     onReviewMisses: () -> Unit,
 ) {
     val perfect = attempts > 0 && correct == attempts
+    val nextColor = Chords.getOrNull(levelIndex + 1)?.display
     val message = when {
         reviewingMisses -> "Review mode. Correct missed colors to clear them from this session."
+        missedCount > 0 && adaptiveMode -> "Session target reached. Review missed colors before adaptive adds another color."
         missedCount > 0 -> "Session target reached. Review missed colors before adding a new one."
+        !perfect && adaptiveMode -> "Missed colors reviewed. Adaptive will keep this level steady."
         !perfect -> "Missed colors reviewed. Keep this level steady before adding a new one."
-        levelIndex < Chords.lastIndex -> "Perfect session. Keep this level steady before adding ${Chords[levelIndex + 1].display}."
+        adaptiveMode && nextColor != null -> "Perfect session. Adaptive will add $nextColor next."
+        nextColor != null -> "Perfect session. Keep this level steady before adding $nextColor."
         else -> "All levels are available. Keep practicing to maintain accuracy."
     }
     Surface(
@@ -1245,6 +1297,15 @@ private fun LevelSwatch(chord: ChordDefinition) {
     )
 }
 
+private fun levelDescription(index: Int): String {
+    val chord = Chords[index]
+    return when (index) {
+        1 -> "Start here. Red and Yellow only."
+        2 -> "Adds ${chord.display}. Choose after Red and Yellow feel easy."
+        else -> "Adds ${chord.display}. Choose after Level ${index - 1} feels steady."
+    }
+}
+
 @Composable
 private fun LevelSelector(
     levelIndex: Int,
@@ -1255,7 +1316,7 @@ private fun LevelSelector(
 ) {
     var expanded by remember { mutableStateOf(false) }
     val current = Chords[levelIndex]
-    Box(modifier = modifier, contentAlignment = Alignment.Center) {
+    Box(modifier = modifier, contentAlignment = Alignment.CenterStart) {
         OutlinedButton(
             onClick = { expanded = true },
             shape = RoundedCornerShape(18.dp),
@@ -1265,15 +1326,45 @@ private fun LevelSelector(
             Spacer(modifier = Modifier.width(8.dp))
             Text(if (showTextLabels) "Level $levelIndex: ${current.display}" else "Level $levelIndex")
         }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier
+                .widthIn(min = 260.dp, max = 320.dp)
+                .heightIn(max = 420.dp),
+        ) {
+            Column(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                Text("Manual levels", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(
+                    "Pick the highest level your child can still answer confidently.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             Chords.drop(1).forEachIndexed { offset, chord ->
                 val index = offset + 1
                 DropdownMenuItem(
                     text = {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
                             LevelSwatch(chord)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(if (showTextLabels) "Level $index: ${chord.display}" else "Level $index")
+                            Column {
+                                Text(
+                                    if (showTextLabels) "Level $index: ${chord.display}" else "Level $index",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                Text(
+                                    levelDescription(index),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     },
                     onClick = {
@@ -1287,6 +1378,32 @@ private fun LevelSelector(
 }
 
 @Composable
+private fun AdaptiveLevelStatus(levelIndex: Int, showTextLabels: Boolean) {
+    val current = Chords[levelIndex]
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        shape = RoundedCornerShape(18.dp),
+        modifier = Modifier.widthIn(max = 190.dp),
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            LevelSwatch(current)
+            Text(
+                text = if (showTextLabels) "Adaptive Level $levelIndex: ${current.display}" else "Level $levelIndex",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
 private fun SessionFooter(
     correct: Int,
     attempts: Int,
@@ -1294,6 +1411,7 @@ private fun SessionFooter(
     levelIndex: Int,
     showTextLabels: Boolean,
     showTapTargets: Boolean,
+    adaptiveMode: Boolean,
     onLevelChange: (Int) -> Unit,
     onReset: () -> Unit,
 ) {
@@ -1320,13 +1438,18 @@ private fun SessionFooter(
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            LevelSelector(
-                levelIndex = levelIndex,
-                showTextLabels = showTextLabels,
-                showTapTargets = showTapTargets,
-                onLevelChange = onLevelChange,
-                modifier = Modifier.weight(1f),
-            )
+            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                if (adaptiveMode) {
+                    AdaptiveLevelStatus(levelIndex = levelIndex, showTextLabels = showTextLabels)
+                } else {
+                    LevelSelector(
+                        levelIndex = levelIndex,
+                        showTextLabels = showTextLabels,
+                        showTapTargets = showTapTargets,
+                        onLevelChange = onLevelChange,
+                    )
+                }
+            }
             TextButton(
                 onClick = onReset,
                 modifier = Modifier.tapTargetOverlay(showTapTargets, Color(0xFF00D7FF)),
@@ -1500,7 +1623,7 @@ private fun SettingsScreen(
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
-        SettingToggle("Favor missed colors", localAdaptive, localShowTapTargets) { localAdaptive = it }
+        SettingToggle("Adaptive spaced repetition", localAdaptive, localShowTapTargets) { localAdaptive = it }
         Button(
             onClick = {
                 onSave(
