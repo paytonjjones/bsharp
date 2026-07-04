@@ -46,6 +46,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.displayCutoutPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -56,7 +57,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
@@ -630,6 +630,7 @@ private fun BSharpNativeApp() {
     }
 
     Scaffold(
+        modifier = Modifier.displayCutoutPadding(),
         topBar = {
             AnimatedVisibility(
                 visible = panel != AppPanel.Game || !audioStarted || topBarRevealed,
@@ -808,7 +809,6 @@ private fun TopNavigation(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .statusBarsPadding()
                 .padding(start = 12.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
