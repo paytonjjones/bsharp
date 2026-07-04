@@ -63,7 +63,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -165,7 +164,13 @@ private enum class AppPanel {
     Trainer,
     Stats,
     Settings,
-    About,
+}
+
+private enum class NavIcon {
+    Play,
+    Trainer,
+    Stats,
+    Settings,
 }
 
 private data class ChordDefinition(
@@ -638,6 +643,7 @@ private fun BSharpNativeApp() {
                 adaptiveMode = adaptiveMode,
                 onLevelChange = ::changeLevel,
                 onReset = { showResetDialog = true },
+                onAdaptiveLevelClick = { panel = AppPanel.Settings },
                 onPanelSelected = { panel = it },
             )
         },
@@ -722,7 +728,6 @@ private fun BSharpNativeApp() {
                         adaptiveMode = adaptiveMode,
                         onSave = onSaveSettings,
                     )
-                    AppPanel.About -> AboutScreen()
                 }
             }
         }
@@ -762,6 +767,7 @@ private fun BottomAppChrome(
     adaptiveMode: Boolean,
     onLevelChange: (Int) -> Unit,
     onReset: () -> Unit,
+    onAdaptiveLevelClick: () -> Unit,
     onPanelSelected: (AppPanel) -> Unit,
 ) {
     Surface(
@@ -793,6 +799,7 @@ private fun BottomAppChrome(
                     adaptiveMode = adaptiveMode,
                     onLevelChange = onLevelChange,
                     onReset = onReset,
+                    onAdaptiveLevelClick = onAdaptiveLevelClick,
                 )
             }
             BottomNavigationTabs(
@@ -818,38 +825,35 @@ private fun BottomNavigationTabs(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         BottomNavigationTab(
-            label = "Play",
+            icon = NavIcon.Play,
+            contentDescription = "Play",
             active = current == AppPanel.Game,
             showTapTargets = showTapTargets,
             onClick = { onPanelSelected(AppPanel.Game) },
             modifier = Modifier.weight(1f),
         )
         BottomNavigationTab(
-            label = "Train",
+            icon = NavIcon.Trainer,
+            contentDescription = "Trainer",
             active = current == AppPanel.Trainer,
             showTapTargets = showTapTargets,
             onClick = { onPanelSelected(AppPanel.Trainer) },
             modifier = Modifier.weight(1f),
         )
         BottomNavigationTab(
-            label = "Stats",
+            icon = NavIcon.Stats,
+            contentDescription = "Stats",
             active = current == AppPanel.Stats,
             showTapTargets = showTapTargets,
             onClick = { onPanelSelected(AppPanel.Stats) },
             modifier = Modifier.weight(1f),
         )
         BottomNavigationTab(
-            label = "Settings",
+            icon = NavIcon.Settings,
+            contentDescription = "Settings",
             active = current == AppPanel.Settings,
             showTapTargets = showTapTargets,
             onClick = { onPanelSelected(AppPanel.Settings) },
-            modifier = Modifier.weight(1f),
-        )
-        BottomNavigationTab(
-            label = "About",
-            active = current == AppPanel.About,
-            showTapTargets = showTapTargets,
-            onClick = { onPanelSelected(AppPanel.About) },
             modifier = Modifier.weight(1f),
         )
     }
@@ -857,7 +861,8 @@ private fun BottomNavigationTabs(
 
 @Composable
 private fun BottomNavigationTab(
-    label: String,
+    icon: NavIcon,
+    contentDescription: String,
     active: Boolean,
     showTapTargets: Boolean,
     onClick: () -> Unit,
@@ -882,27 +887,107 @@ private fun BottomNavigationTab(
         tonalElevation = if (active) 4.dp else 0.dp,
         shape = shape,
         modifier = modifier
-            .height(48.dp)
+            .height(52.dp)
             .scale(scale)
             .tapTargetOverlay(showTapTargets, Color(0xFF00D7FF))
             .clip(shape)
             .clickable(onClick = onClick)
-            .semantics { contentDescription = label },
+            .semantics { this.contentDescription = contentDescription },
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 2.dp),
+                .padding(10.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = label,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.labelMedium,
-                fontWeight = if (active) FontWeight.Black else FontWeight.Bold,
+            NavIconMark(
+                icon = icon,
+                tint = contentColor,
+                modifier = Modifier.size(if (active) 30.dp else 28.dp),
             )
+        }
+    }
+}
+
+@Composable
+private fun NavIconMark(icon: NavIcon, tint: Color, modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier) {
+        val stroke = size.minDimension * 0.12f
+        when (icon) {
+            NavIcon.Play -> {
+                val path = Path().apply {
+                    moveTo(size.width * 0.32f, size.height * 0.2f)
+                    lineTo(size.width * 0.32f, size.height * 0.8f)
+                    lineTo(size.width * 0.78f, size.height * 0.5f)
+                    close()
+                }
+                drawPath(path = path, color = tint)
+            }
+            NavIcon.Trainer -> {
+                drawCircle(
+                    color = tint,
+                    radius = size.minDimension * 0.18f,
+                    center = Offset(size.width * 0.34f, size.height * 0.68f),
+                )
+                drawLine(
+                    color = tint,
+                    start = Offset(size.width * 0.5f, size.height * 0.66f),
+                    end = Offset(size.width * 0.5f, size.height * 0.22f),
+                    strokeWidth = stroke,
+                    cap = StrokeCap.Round,
+                )
+                drawLine(
+                    color = tint,
+                    start = Offset(size.width * 0.5f, size.height * 0.24f),
+                    end = Offset(size.width * 0.75f, size.height * 0.32f),
+                    strokeWidth = stroke,
+                    cap = StrokeCap.Round,
+                )
+            }
+            NavIcon.Stats -> {
+                val bottom = size.height * 0.78f
+                listOf(
+                    Offset(size.width * 0.25f, size.height * 0.56f),
+                    Offset(size.width * 0.5f, size.height * 0.38f),
+                    Offset(size.width * 0.75f, size.height * 0.2f),
+                ).forEach { top ->
+                    drawLine(
+                        color = tint,
+                        start = Offset(top.x, bottom),
+                        end = top,
+                        strokeWidth = stroke * 1.2f,
+                        cap = StrokeCap.Round,
+                    )
+                }
+            }
+            NavIcon.Settings -> {
+                val center = Offset(size.width / 2f, size.height / 2f)
+                drawCircle(
+                    color = tint,
+                    radius = size.minDimension * 0.24f,
+                    center = center,
+                    style = Stroke(width = stroke, cap = StrokeCap.Round),
+                )
+                drawCircle(color = tint, radius = size.minDimension * 0.08f, center = center)
+                listOf(
+                    Offset(0.5f, 0.16f) to Offset(0.5f, 0.04f),
+                    Offset(0.5f, 0.84f) to Offset(0.5f, 0.96f),
+                    Offset(0.16f, 0.5f) to Offset(0.04f, 0.5f),
+                    Offset(0.84f, 0.5f) to Offset(0.96f, 0.5f),
+                    Offset(0.26f, 0.26f) to Offset(0.16f, 0.16f),
+                    Offset(0.74f, 0.26f) to Offset(0.84f, 0.16f),
+                    Offset(0.26f, 0.74f) to Offset(0.16f, 0.84f),
+                    Offset(0.74f, 0.74f) to Offset(0.84f, 0.84f),
+                ).forEach { (start, end) ->
+                    drawLine(
+                        color = tint,
+                        start = Offset(size.width * start.x, size.height * start.y),
+                        end = Offset(size.width * end.x, size.height * end.y),
+                        strokeWidth = stroke,
+                        cap = StrokeCap.Round,
+                    )
+                }
+            }
         }
     }
 }
@@ -1656,13 +1741,24 @@ private fun LevelSelector(
 }
 
 @Composable
-private fun AdaptiveLevelStatus(levelIndex: Int, showTextLabels: Boolean) {
+private fun AdaptiveLevelStatus(
+    levelIndex: Int,
+    showTextLabels: Boolean,
+    showTapTargets: Boolean,
+    onClick: () -> Unit,
+) {
     val current = Chords[levelIndex]
+    val shape = RoundedCornerShape(18.dp)
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        shape = RoundedCornerShape(18.dp),
-        modifier = Modifier.widthIn(max = 190.dp),
+        shape = shape,
+        modifier = Modifier
+            .widthIn(max = 190.dp)
+            .tapTargetOverlay(showTapTargets, Color(0xFF00D7FF))
+            .clip(shape)
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = "Adaptive level settings" },
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
@@ -1692,6 +1788,7 @@ private fun SessionFooter(
     adaptiveMode: Boolean,
     onLevelChange: (Int) -> Unit,
     onReset: () -> Unit,
+    onAdaptiveLevelClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -1749,7 +1846,12 @@ private fun SessionFooter(
                 label = "level-status-transition",
             ) { state ->
                 if (state.first) {
-                    AdaptiveLevelStatus(levelIndex = state.second, showTextLabels = showTextLabels)
+                    AdaptiveLevelStatus(
+                        levelIndex = state.second,
+                        showTextLabels = showTextLabels,
+                        showTapTargets = showTapTargets,
+                        onClick = onAdaptiveLevelClick,
+                    )
                 } else {
                     LevelSelector(
                         levelIndex = state.second,
@@ -1951,6 +2053,39 @@ private fun SettingsScreen(
         ) {
             Text("Save settings", modifier = Modifier.padding(vertical = 8.dp))
         }
+        AboutSettingsSection()
+    }
+}
+
+@Composable
+private fun AboutSettingsSection() {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("About BSharp", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(
+            "BSharp trains chord-color identification using the Eguchi method. Practice in short, frequent sessions and add colors slowly after sustained accuracy.",
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        InfoPill("Offline native Kotlin app")
+        InfoPill("Material 3 Expressive style")
+        InfoPill("Large toddler-friendly targets")
+    }
+}
+
+@Composable
+private fun InfoPill(label: String) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+        shape = CircleShape,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+        )
     }
 }
 
@@ -2016,25 +2151,5 @@ private fun SettingToggle(
             Text(label, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             Switch(checked = checked, onCheckedChange = onCheckedChange)
         }
-    }
-}
-
-@Composable
-private fun AboutScreen() {
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        Text("About BSharp", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black)
-        Text(
-            "BSharp trains chord-color identification using the Eguchi method. Practice in short, frequent sessions and add colors slowly after sustained accuracy.",
-            style = MaterialTheme.typography.bodyLarge,
-        )
-        AssistChip(onClick = {}, label = { Text("Offline native Kotlin app") })
-        AssistChip(onClick = {}, label = { Text("Material 3 Expressive style") })
-        AssistChip(onClick = {}, label = { Text("Large toddler-friendly targets") })
     }
 }
