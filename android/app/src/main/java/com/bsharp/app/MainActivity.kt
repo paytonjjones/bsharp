@@ -182,11 +182,28 @@ private data class ChordDefinition(
     val audioFiles: List<String>,
 )
 
-private data class HistoryEntry(
+internal data class HistoryEntry(
     val timeMillis: Long,
     val levelIndex: Int,
     val correct: Int,
     val attempts: Int,
+)
+
+internal data class NativeProfile(
+    val id: String,
+    val name: String,
+    val avatar: String,
+    val levelIndex: Int = 1,
+    val correct: Int = 0,
+    val attempts: Int = 0,
+    val target: Int = 25,
+    val preferTextLabels: Boolean = false,
+    val describeAnswerAfterResult: Boolean = false,
+    val autoAdvanceAfterAnswer: Boolean = true,
+    val showTapTargets: Boolean = false,
+    val adaptiveMode: Boolean = true,
+    val misses: Map<String, Int> = emptyMap(),
+    val history: List<HistoryEntry> = emptyList(),
 )
 
 private val Chords = listOf(
@@ -242,65 +259,67 @@ private fun Modifier.tapTargetOverlay(show: Boolean, color: Color = Color(0xFFFF
     }
 }
 
-private class TrainerStore(private val context: Context) {
+internal class TrainerStore(private val context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences("bsharp_native_state", Context.MODE_PRIVATE)
+    private val profilesKey = "profiles_v1"
+    private val currentProfileKey = "current_profile_id"
 
     init {
-        if (!prefs.getBoolean("adaptive_default_v2_applied", false)) {
-            prefs.edit()
-                .putBoolean("adaptive_mode", true)
-                .putBoolean("adaptive_default_v2_applied", true)
-                .apply()
-        }
+        ensureProfiles()
     }
 
-    fun profileName(): String {
-        val saved = prefs.getString("profile_name", null)?.trim().orEmpty()
-        return saved.takeIf { it.isNotBlank() && it != "Guest" } ?: defaultProfileName(context)
+    fun profiles(): List<NativeProfile> = ensureProfiles()
+
+    fun currentProfileId(): String = currentProfile().id
+
+    fun switchProfile(id: String) {
+        val profiles = ensureProfiles()
+        val next = profiles.firstOrNull { it.id == id } ?: return
+        prefs.edit().putString(currentProfileKey, next.id).apply()
     }
-    fun avatar(): String = prefs.getString("avatar", AvatarOptions.first()) ?: AvatarOptions.first()
-    fun levelIndex(): Int = prefs.getInt("level_index", 1).coerceIn(1, Chords.lastIndex)
-    fun correct(): Int = prefs.getInt("correct", 0)
-    fun attempts(): Int = prefs.getInt("attempts", 0)
-    fun target(): Int = prefs.getInt("target", 25).coerceAtLeast(1)
-    fun preferTextLabels(): Boolean = prefs.getBoolean("prefer_text_labels", false)
-    fun describeAnswerAfterResult(): Boolean = prefs.getBoolean("describe_answer_after_result", false)
-    fun autoAdvanceAfterAnswer(): Boolean = prefs.getBoolean("auto_advance_after_answer", true)
-    fun showTapTargets(): Boolean = prefs.getBoolean("show_tap_targets", false)
-    fun adaptiveMode(): Boolean = prefs.getBoolean("adaptive_mode", true)
+
+    fun addProfile(): NativeProfile {
+        val existing = ensureProfiles()
+        val id = generateProfileId(existing)
+        val profile = defaultProfile(id = id, name = "New profile ${existing.size + 1}", avatar = AvatarOptions[existing.size % AvatarOptions.size])
+        saveProfiles(existing + profile)
+        prefs.edit().putString(currentProfileKey, id).apply()
+        return profile
+    }
+
+    fun profileName(): String = currentProfile().name
+    fun avatar(): String = currentProfile().avatar
+    fun levelIndex(): Int = currentProfile().levelIndex
+    fun correct(): Int = currentProfile().correct
+    fun attempts(): Int = currentProfile().attempts
+    fun target(): Int = currentProfile().target
+    fun preferTextLabels(): Boolean = currentProfile().preferTextLabels
+    fun describeAnswerAfterResult(): Boolean = currentProfile().describeAnswerAfterResult
+    fun autoAdvanceAfterAnswer(): Boolean = currentProfile().autoAdvanceAfterAnswer
+    fun showTapTargets(): Boolean = currentProfile().showTapTargets
+    fun adaptiveMode(): Boolean = currentProfile().adaptiveMode
 
     fun saveProfile(value: String, avatar: String) {
-        prefs.edit()
-            .putString("profile_name", value.ifBlank { defaultProfileName(context) })
-            .putString("avatar", avatar.takeIf { it in AvatarOptions } ?: AvatarOptions.first())
-            .apply()
+        updateCurrentProfile { profile ->
+            profile.copy(
+                name = value.ifBlank { defaultProfileName(context) },
+                avatar = avatar.takeIf { it in AvatarOptions } ?: AvatarOptions.first(),
+            )
+        }
     }
 
     fun saveLevel(index: Int) {
-        prefs.edit().putInt("level_index", index.coerceIn(1, Chords.lastIndex)).apply()
+        updateCurrentProfile { it.copy(levelIndex = index.coerceIn(1, Chords.lastIndex)) }
     }
 
     fun saveSession(correct: Int, attempts: Int) {
-        prefs.edit().putInt("correct", correct).putInt("attempts", attempts).apply()
+        updateCurrentProfile { it.copy(correct = correct.coerceAtLeast(0), attempts = attempts.coerceAtLeast(0)) }
     }
 
-    fun loadMisses(): Map<String, Int> {
-        val raw = prefs.getString("misses", "{}") ?: "{}"
-        val item = runCatching { JSONObject(raw) }.getOrElse { JSONObject() }
-        return buildMap {
-            Chords.forEach { chord ->
-                val count = item.optInt(chord.key, 0)
-                if (count > 0) put(chord.key, count)
-            }
-        }
-    }
+    fun loadMisses(): Map<String, Int> = currentProfile().misses
 
     fun saveMisses(misses: Map<String, Int>) {
-        val item = JSONObject()
-        misses.forEach { (key, count) ->
-            if (count > 0) item.put(key, count)
-        }
-        prefs.edit().putString("misses", item.toString()).apply()
+        updateCurrentProfile { profile -> profile.copy(misses = misses.filterValues { it > 0 }) }
     }
 
     fun saveSettings(
@@ -311,19 +330,183 @@ private class TrainerStore(private val context: Context) {
         showTapTargets: Boolean,
         adaptiveMode: Boolean,
     ) {
-        prefs.edit()
-            .putInt("target", target.coerceAtLeast(1))
-            .putBoolean("prefer_text_labels", preferTextLabels)
-            .putBoolean("describe_answer_after_result", describeAnswerAfterResult)
-            .putBoolean("auto_advance_after_answer", autoAdvanceAfterAnswer)
-            .putBoolean("show_tap_targets", showTapTargets)
-            .putBoolean("adaptive_mode", adaptiveMode)
-            .apply()
+        updateCurrentProfile { profile ->
+            profile.copy(
+                target = target.coerceAtLeast(1),
+                preferTextLabels = preferTextLabels,
+                describeAnswerAfterResult = describeAnswerAfterResult,
+                autoAdvanceAfterAnswer = autoAdvanceAfterAnswer,
+                showTapTargets = showTapTargets,
+                adaptiveMode = adaptiveMode,
+            )
+        }
     }
 
-    fun loadHistory(): List<HistoryEntry> {
-        val raw = prefs.getString("history", "[]") ?: "[]"
+    fun loadHistory(): List<HistoryEntry> = currentProfile().history.sortedByDescending { it.timeMillis }
+
+    fun appendHistory(entry: HistoryEntry) {
+        updateCurrentProfile { profile ->
+            profile.copy(history = (listOf(entry) + profile.history).take(100))
+        }
+    }
+
+    private fun ensureProfiles(): List<NativeProfile> {
+        val loaded = loadProfiles()
+        if (loaded.isNotEmpty()) {
+            val currentId = prefs.getString(currentProfileKey, null)
+            if (currentId == null || loaded.none { it.id == currentId }) {
+                prefs.edit().putString(currentProfileKey, loaded.first().id).apply()
+            }
+            return loaded
+        }
+
+        val migrated = listOf(migrateLegacyProfile())
+        saveProfiles(migrated)
+        prefs.edit().putString(currentProfileKey, migrated.first().id).apply()
+        return migrated
+    }
+
+    private fun currentProfile(): NativeProfile {
+        val profiles = ensureProfiles()
+        val currentId = prefs.getString(currentProfileKey, null)
+        return profiles.firstOrNull { it.id == currentId } ?: profiles.first()
+    }
+
+    private fun updateCurrentProfile(transform: (NativeProfile) -> NativeProfile) {
+        val profiles = ensureProfiles()
+        val currentId = currentProfile().id
+        val updated = profiles.map { profile ->
+            if (profile.id == currentId) transform(profile).normalized() else profile
+        }
+        saveProfiles(updated)
+    }
+
+    private fun loadProfiles(): List<NativeProfile> {
+        val raw = prefs.getString(profilesKey, null) ?: return emptyList()
         val array = runCatching { JSONArray(raw) }.getOrElse { JSONArray() }
+        return buildList {
+            for (i in 0 until array.length()) {
+                val item = array.optJSONObject(i) ?: continue
+                add(profileFromJson(item))
+            }
+        }.ifEmpty { emptyList() }
+    }
+
+    private fun saveProfiles(profiles: List<NativeProfile>) {
+        val array = JSONArray()
+        profiles.forEach { array.put(profileToJson(it.normalized())) }
+        prefs.edit().putString(profilesKey, array.toString()).apply()
+    }
+
+    private fun migrateLegacyProfile(): NativeProfile {
+        val saved = prefs.getString("profile_name", null)?.trim().orEmpty()
+        val name = saved.takeIf { it.isNotBlank() && it != "Guest" } ?: defaultProfileName(context)
+        val avatar = prefs.getString("avatar", AvatarOptions.first()) ?: AvatarOptions.first()
+        return NativeProfile(
+            id = "guest",
+            name = name,
+            avatar = avatar.takeIf { it in AvatarOptions } ?: AvatarOptions.first(),
+            levelIndex = prefs.getInt("level_index", 1).coerceIn(1, Chords.lastIndex),
+            correct = prefs.getInt("correct", 0).coerceAtLeast(0),
+            attempts = prefs.getInt("attempts", 0).coerceAtLeast(0),
+            target = prefs.getInt("target", 25).coerceAtLeast(1),
+            preferTextLabels = prefs.getBoolean("prefer_text_labels", false),
+            describeAnswerAfterResult = prefs.getBoolean("describe_answer_after_result", false),
+            autoAdvanceAfterAnswer = prefs.getBoolean("auto_advance_after_answer", true),
+            showTapTargets = prefs.getBoolean("show_tap_targets", false),
+            adaptiveMode = prefs.getBoolean("adaptive_mode", true),
+            misses = missesFromJson(runCatching { JSONObject(prefs.getString("misses", "{}") ?: "{}") }.getOrElse { JSONObject() }),
+            history = historyFromJson(runCatching { JSONArray(prefs.getString("history", "[]") ?: "[]") }.getOrElse { JSONArray() }),
+        ).normalized()
+    }
+
+    private fun defaultProfile(id: String, name: String, avatar: String): NativeProfile {
+        return NativeProfile(
+            id = id,
+            name = name,
+            avatar = avatar.takeIf { it in AvatarOptions } ?: AvatarOptions.first(),
+        ).normalized()
+    }
+
+    private fun generateProfileId(existing: List<NativeProfile>): String {
+        val ids = existing.map { it.id }.toSet()
+        var candidate = "profile_${System.currentTimeMillis()}"
+        var suffix = 1
+        while (candidate in ids) {
+            candidate = "profile_${System.currentTimeMillis()}_${suffix++}"
+        }
+        return candidate
+    }
+
+    private fun NativeProfile.normalized(): NativeProfile {
+        return copy(
+            name = name.ifBlank { defaultProfileName(context) },
+            avatar = avatar.takeIf { it in AvatarOptions } ?: AvatarOptions.first(),
+            levelIndex = levelIndex.coerceIn(1, Chords.lastIndex),
+            correct = correct.coerceAtLeast(0),
+            attempts = attempts.coerceAtLeast(0),
+            target = target.coerceAtLeast(1),
+            misses = misses.filterValues { it > 0 },
+            history = history.take(100),
+        )
+    }
+
+    private fun profileFromJson(item: JSONObject): NativeProfile {
+        return NativeProfile(
+            id = item.optString("id").ifBlank { "profile_${System.currentTimeMillis()}" },
+            name = item.optString("name").ifBlank { defaultProfileName(context) },
+            avatar = item.optString("avatar").takeIf { it in AvatarOptions } ?: AvatarOptions.first(),
+            levelIndex = item.optInt("levelIndex", 1),
+            correct = item.optInt("correct", 0),
+            attempts = item.optInt("attempts", 0),
+            target = item.optInt("target", 25),
+            preferTextLabels = item.optBoolean("preferTextLabels", false),
+            describeAnswerAfterResult = item.optBoolean("describeAnswerAfterResult", false),
+            autoAdvanceAfterAnswer = item.optBoolean("autoAdvanceAfterAnswer", true),
+            showTapTargets = item.optBoolean("showTapTargets", false),
+            adaptiveMode = item.optBoolean("adaptiveMode", true),
+            misses = missesFromJson(item.optJSONObject("misses") ?: JSONObject()),
+            history = historyFromJson(item.optJSONArray("history") ?: JSONArray()),
+        ).normalized()
+    }
+
+    private fun profileToJson(profile: NativeProfile): JSONObject {
+        return JSONObject().apply {
+            put("id", profile.id)
+            put("name", profile.name)
+            put("avatar", profile.avatar)
+            put("levelIndex", profile.levelIndex)
+            put("correct", profile.correct)
+            put("attempts", profile.attempts)
+            put("target", profile.target)
+            put("preferTextLabels", profile.preferTextLabels)
+            put("describeAnswerAfterResult", profile.describeAnswerAfterResult)
+            put("autoAdvanceAfterAnswer", profile.autoAdvanceAfterAnswer)
+            put("showTapTargets", profile.showTapTargets)
+            put("adaptiveMode", profile.adaptiveMode)
+            put("misses", missesToJson(profile.misses))
+            put("history", historyToJson(profile.history))
+        }
+    }
+
+    private fun missesFromJson(item: JSONObject): Map<String, Int> {
+        return buildMap {
+            Chords.forEach { chord ->
+                val count = item.optInt(chord.key, 0)
+                if (count > 0) put(chord.key, count)
+            }
+        }
+    }
+
+    private fun missesToJson(misses: Map<String, Int>): JSONObject {
+        val item = JSONObject()
+        misses.forEach { (key, count) ->
+            if (count > 0) item.put(key, count)
+        }
+        return item
+    }
+
+    private fun historyFromJson(array: JSONArray): List<HistoryEntry> {
         return buildList {
             for (i in 0 until array.length()) {
                 val item = array.optJSONObject(i) ?: continue
@@ -339,23 +522,17 @@ private class TrainerStore(private val context: Context) {
         }.sortedByDescending { it.timeMillis }
     }
 
-    fun appendHistory(entry: HistoryEntry) {
+    private fun historyToJson(history: List<HistoryEntry>): JSONArray {
         val array = JSONArray()
-        array.put(JSONObject().apply {
-            put("timeMillis", entry.timeMillis)
-            put("levelIndex", entry.levelIndex)
-            put("correct", entry.correct)
-            put("attempts", entry.attempts)
-        })
-        for (existing in loadHistory().take(99)) {
+        history.take(100).forEach { entry ->
             array.put(JSONObject().apply {
-                put("timeMillis", existing.timeMillis)
-                put("levelIndex", existing.levelIndex)
-                put("correct", existing.correct)
-                put("attempts", existing.attempts)
+                put("timeMillis", entry.timeMillis)
+                put("levelIndex", entry.levelIndex)
+                put("correct", entry.correct)
+                put("attempts", entry.attempts)
             })
         }
-        prefs.edit().putString("history", array.toString()).apply()
+        return array
     }
 }
 
@@ -422,6 +599,8 @@ private fun BSharpNativeApp() {
     }
 
     var panel by remember { mutableStateOf(AppPanel.Game) }
+    var profiles by remember { mutableStateOf(store.profiles()) }
+    var currentProfileId by remember { mutableStateOf(store.currentProfileId()) }
     var profileName by remember { mutableStateOf(store.profileName()) }
     var avatar by remember { mutableStateOf(store.avatar()) }
     var levelIndex by remember { mutableStateOf(store.levelIndex()) }
@@ -442,6 +621,33 @@ private fun BSharpNativeApp() {
     var selectedChord by remember { mutableStateOf<ChordDefinition?>(null) }
     var audioStarted by remember { mutableStateOf(false) }
     var showResetDialog by remember { mutableStateOf(false) }
+
+    fun refreshProfiles() {
+        profiles = store.profiles()
+        currentProfileId = store.currentProfileId()
+    }
+
+    fun applyCurrentProfile() {
+        val nextLevel = store.levelIndex()
+        profileName = store.profileName()
+        avatar = store.avatar()
+        levelIndex = nextLevel
+        correct = store.correct()
+        attempts = store.attempts()
+        target = store.target()
+        preferTextLabels = store.preferTextLabels()
+        describeAnswerAfterResult = store.describeAnswerAfterResult()
+        autoAdvanceAfterAnswer = store.autoAdvanceAfterAnswer()
+        showTapTargets = store.showTapTargets()
+        adaptiveMode = store.adaptiveMode()
+        history = store.loadHistory()
+        missedCounts = store.loadMisses()
+        reviewingMisses = false
+        selectedChord = null
+        audioStarted = false
+        correctChord = Chords.take(nextLevel + 1).random()
+        refreshProfiles()
+    }
 
     fun activeChords(): List<ChordDefinition> = Chords.take(levelIndex + 1)
 
@@ -586,6 +792,19 @@ private fun BSharpNativeApp() {
         audio.playChord(reviewChord)
     }
 
+    fun switchProfile(id: String) {
+        audio.stop()
+        store.switchProfile(id)
+        applyCurrentProfile()
+    }
+
+    fun addProfile() {
+        audio.stop()
+        store.addProfile()
+        applyCurrentProfile()
+        panel = AppPanel.Settings
+    }
+
     LaunchedEffect(selectedChord, autoAdvanceAfterAnswer, panel, attempts, reviewingMisses) {
         autoAdvanceRemainingMillis = 0L
         autoAdvanceTotalMillis = 0L
@@ -626,6 +845,7 @@ private fun BSharpNativeApp() {
         adaptiveMode = newAdaptive
         store.saveProfile(savedName, savedAvatar)
         store.saveSettings(newTarget, newPreferText, newDescribe, newAutoAdvance, newShowTapTargets, newAdaptive)
+        refreshProfiles()
         panel = AppPanel.Game
     }
 
@@ -716,6 +936,8 @@ private fun BSharpNativeApp() {
                         currentLevel = levelIndex,
                     )
                     AppPanel.Settings -> SettingsScreen(
+                        profiles = profiles,
+                        currentProfileId = currentProfileId,
                         profileName = profileName,
                         avatar = avatar,
                         target = target,
@@ -725,6 +947,8 @@ private fun BSharpNativeApp() {
                         showTapTargets = showTapTargets,
                         adaptiveMode = adaptiveMode,
                         onSave = onSaveSettings,
+                        onProfileSelected = ::switchProfile,
+                        onAddProfile = ::addProfile,
                     )
                 }
             }
@@ -1677,7 +1901,9 @@ private fun LevelSelector(
         OutlinedButton(
             onClick = { expanded = true },
             shape = RoundedCornerShape(18.dp),
-            modifier = Modifier.tapTargetOverlay(showTapTargets, Color(0xFF00D7FF)),
+            modifier = Modifier
+                .tapTargetOverlay(showTapTargets, Color(0xFF00D7FF))
+                .semantics { contentDescription = "Level selector" },
         ) {
             LevelSwatch(current)
             Spacer(modifier = Modifier.width(8.dp))
@@ -1704,6 +1930,8 @@ private fun LevelSelector(
             Chords.drop(1).forEachIndexed { offset, chord ->
                 val index = offset + 1
                 DropdownMenuItem(
+                    modifier = Modifier
+                        .semantics { contentDescription = "Choose Level $index" },
                     text = {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -1927,6 +2155,8 @@ private fun DashboardMetric(label: String, value: String, modifier: Modifier = M
 
 @Composable
 private fun SettingsScreen(
+    profiles: List<NativeProfile>,
+    currentProfileId: String,
     profileName: String,
     avatar: String,
     target: Int,
@@ -1936,15 +2166,17 @@ private fun SettingsScreen(
     showTapTargets: Boolean,
     adaptiveMode: Boolean,
     onSave: (String, String, Int, Boolean, Boolean, Boolean, Boolean, Boolean) -> Unit,
+    onProfileSelected: (String) -> Unit,
+    onAddProfile: () -> Unit,
 ) {
-    var localName by remember(profileName) { mutableStateOf(profileName) }
-    var localAvatar by remember(avatar) { mutableStateOf(avatar) }
-    var localTarget by remember(target) { mutableStateOf(target.toString()) }
-    var localPreferText by remember(preferTextLabels) { mutableStateOf(preferTextLabels) }
-    var localDescribe by remember(describeAnswerAfterResult) { mutableStateOf(describeAnswerAfterResult) }
-    var localAutoAdvance by remember(autoAdvanceAfterAnswer) { mutableStateOf(autoAdvanceAfterAnswer) }
-    var localShowTapTargets by remember(showTapTargets) { mutableStateOf(showTapTargets) }
-    var localAdaptive by remember(adaptiveMode) { mutableStateOf(adaptiveMode) }
+    var localName by remember(currentProfileId, profileName) { mutableStateOf(profileName) }
+    var localAvatar by remember(currentProfileId, avatar) { mutableStateOf(avatar) }
+    var localTarget by remember(currentProfileId, target) { mutableStateOf(target.toString()) }
+    var localPreferText by remember(currentProfileId, preferTextLabels) { mutableStateOf(preferTextLabels) }
+    var localDescribe by remember(currentProfileId, describeAnswerAfterResult) { mutableStateOf(describeAnswerAfterResult) }
+    var localAutoAdvance by remember(currentProfileId, autoAdvanceAfterAnswer) { mutableStateOf(autoAdvanceAfterAnswer) }
+    var localShowTapTargets by remember(currentProfileId, showTapTargets) { mutableStateOf(showTapTargets) }
+    var localAdaptive by remember(currentProfileId, adaptiveMode) { mutableStateOf(adaptiveMode) }
 
     Column(
         modifier = Modifier
@@ -1955,6 +2187,13 @@ private fun SettingsScreen(
     ) {
         Text("Settings", style = MaterialTheme.typography.headlineLarge, fontWeight = FontWeight.Black)
         Text("Profile", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        ProfileSwitcher(
+            profiles = profiles,
+            currentProfileId = currentProfileId,
+            showTapTargets = localShowTapTargets,
+            onProfileSelected = onProfileSelected,
+            onAddProfile = onAddProfile,
+        )
         AvatarPicker(
             selectedAvatar = localAvatar,
             showTapTargets = localShowTapTargets,
@@ -1965,7 +2204,9 @@ private fun SettingsScreen(
             onValueChange = { localName = it },
             label = { Text("Profile name") },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { contentDescription = "Profile name" },
         )
         Text("Accessibility", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
         SettingToggle("Auto-advance after answer", localAutoAdvance, localShowTapTargets) { localAutoAdvance = it }
@@ -1995,11 +2236,69 @@ private fun SettingsScreen(
                 )
             },
             shape = RoundedCornerShape(24.dp),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { contentDescription = "Save settings" },
         ) {
             Text("Save settings", modifier = Modifier.padding(vertical = 8.dp))
         }
         AboutSettingsSection()
+    }
+}
+
+@Composable
+private fun ProfileSwitcher(
+    profiles: List<NativeProfile>,
+    currentProfileId: String,
+    showTapTargets: Boolean,
+    onProfileSelected: (String) -> Unit,
+    onAddProfile: () -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        profiles.forEach { profile ->
+            val selected = profile.id == currentProfileId
+            val shape = RoundedCornerShape(20.dp)
+            Surface(
+                color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                shape = shape,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .tapTargetOverlay(showTapTargets, Color(0xFF00D7FF))
+                    .clip(shape)
+                    .clickable { onProfileSelected(profile.id) }
+                    .semantics { contentDescription = "Switch to profile ${profile.name}" },
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(profile.avatar, style = MaterialTheme.typography.headlineSmall)
+                    Text(
+                        profile.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = if (selected) FontWeight.Black else FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (selected) {
+                        Text("Current", style = MaterialTheme.typography.labelLarge)
+                    }
+                }
+            }
+        }
+        OutlinedButton(
+            onClick = onAddProfile,
+            shape = RoundedCornerShape(20.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .tapTargetOverlay(showTapTargets, Color(0xFF00D7FF))
+                .semantics { contentDescription = "Add profile" },
+        ) {
+            Text("Add profile", modifier = Modifier.padding(vertical = 6.dp))
+        }
     }
 }
 
