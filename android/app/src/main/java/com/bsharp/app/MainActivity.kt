@@ -40,7 +40,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -109,7 +108,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import org.json.JSONArray
 import org.json.JSONObject
-import kotlinx.coroutines.delay
 import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
@@ -130,7 +128,12 @@ class MainActivity : ComponentActivity() {
         if (hasFocus) window.decorView.post { hideStatusBarIconsWithoutCutout() }
     }
 
+    @Suppress("DEPRECATION")
     private fun configureWindowWithoutCutout() {
+        val systemBackground = android.graphics.Color.rgb(18, 13, 11)
+        window.statusBarColor = systemBackground
+        window.decorView.setBackgroundColor(systemBackground)
+        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(systemBackground))
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             window.attributes = window.attributes.apply {
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_NEVER
@@ -428,7 +431,6 @@ private fun BSharpNativeApp() {
     var history by remember { mutableStateOf(store.loadHistory()) }
     var missedCounts by remember { mutableStateOf(store.loadMisses()) }
     var reviewingMisses by remember { mutableStateOf(false) }
-    var topBarRevealed by remember { mutableStateOf(false) }
     var autoAdvanceRemainingMillis by remember { mutableStateOf(0L) }
     var autoAdvanceTotalMillis by remember { mutableStateOf(0L) }
     var correctChord by remember { mutableStateOf(Chords.take(levelIndex + 1).random()) }
@@ -606,13 +608,6 @@ private fun BSharpNativeApp() {
         }
     }
 
-    LaunchedEffect(topBarRevealed, panel, audioStarted) {
-        if (topBarRevealed && panel == AppPanel.Game && audioStarted) {
-            delay(4_000)
-            topBarRevealed = false
-        }
-    }
-
     val onSaveSettings = { newName: String, newAvatar: String, newTarget: Int, newPreferText: Boolean, newDescribe: Boolean, newAutoAdvance: Boolean, newShowTapTargets: Boolean, newAdaptive: Boolean ->
         val savedName = newName.ifBlank { defaultProfileName(context) }
         val savedAvatar = newAvatar.takeIf { it in AvatarOptions } ?: AvatarOptions.first()
@@ -631,46 +626,20 @@ private fun BSharpNativeApp() {
 
     Scaffold(
         modifier = Modifier.displayCutoutPadding(),
-        topBar = {
-            AnimatedVisibility(
-                visible = panel != AppPanel.Game || !audioStarted || topBarRevealed,
-                enter = fadeIn(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
-                    slideInVertically(animationSpec = tween(280, easing = FastOutSlowInEasing)) { -it },
-                exit = fadeOut(animationSpec = tween(140)) +
-                    slideOutVertically(animationSpec = tween(220, easing = FastOutSlowInEasing)) { -it },
-            ) {
-                TopNavigation(
-                    current = panel,
-                    profileName = profileName,
-                    avatar = avatar,
-                    showTapTargets = showTapTargets,
-                    onPanelSelected = {
-                        topBarRevealed = false
-                        panel = it
-                    },
-                )
-            }
-        },
         bottomBar = {
-            AnimatedVisibility(
-                visible = panel == AppPanel.Game,
-                enter = fadeIn(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
-                    slideInVertically(animationSpec = tween(280, easing = FastOutSlowInEasing)) { it / 2 },
-                exit = fadeOut(animationSpec = tween(140)) +
-                    slideOutVertically(animationSpec = tween(220, easing = FastOutSlowInEasing)) { it / 2 },
-            ) {
-                SessionFooter(
-                    correct = correct,
-                    attempts = attempts,
-                    target = target,
-                    levelIndex = levelIndex,
-                    showTextLabels = preferTextLabels,
-                    showTapTargets = showTapTargets,
-                    adaptiveMode = adaptiveMode,
-                    onLevelChange = ::changeLevel,
-                    onReset = { showResetDialog = true },
-                )
-            }
+            BottomAppChrome(
+                current = panel,
+                correct = correct,
+                attempts = attempts,
+                target = target,
+                levelIndex = levelIndex,
+                showTextLabels = preferTextLabels,
+                showTapTargets = showTapTargets,
+                adaptiveMode = adaptiveMode,
+                onLevelChange = ::changeLevel,
+                onReset = { showResetDialog = true },
+                onPanelSelected = { panel = it },
+            )
         },
         containerColor = MaterialTheme.colorScheme.surface,
     ) { padding ->
@@ -756,17 +725,6 @@ private fun BSharpNativeApp() {
                     AppPanel.About -> AboutScreen()
                 }
             }
-            if (panel == AppPanel.Game && audioStarted && !topBarRevealed) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .fillMaxWidth()
-                        .height(28.dp)
-                        .tapTargetOverlay(showTapTargets, Color(0xFF00D7FF))
-                        .clickable { topBarRevealed = true }
-                        .semantics { contentDescription = "Show navigation" },
-                )
-            }
         }
     }
 
@@ -793,94 +751,159 @@ private fun BSharpNativeApp() {
 }
 
 @Composable
-private fun TopNavigation(
+private fun BottomAppChrome(
     current: AppPanel,
-    profileName: String,
-    avatar: String,
+    correct: Int,
+    attempts: Int,
+    target: Int,
+    levelIndex: Int,
+    showTextLabels: Boolean,
     showTapTargets: Boolean,
+    adaptiveMode: Boolean,
+    onLevelChange: (Int) -> Unit,
+    onReset: () -> Unit,
     onPanelSelected: (AppPanel) -> Unit,
 ) {
     Surface(
-        tonalElevation = 4.dp,
-        shadowElevation = 1.dp,
-        shape = RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp),
+        tonalElevation = 6.dp,
+        shadowElevation = 2.dp,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 12.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .navigationBarsPadding()
+                .padding(top = 8.dp, bottom = 6.dp),
         ) {
-            Text(
-                text = "BSharp",
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Black,
-            )
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            AnimatedVisibility(
+                visible = current == AppPanel.Game,
+                enter = fadeIn(animationSpec = tween(180, easing = FastOutSlowInEasing)) +
+                    expandVertically(animationSpec = tween(260, easing = FastOutSlowInEasing), expandFrom = Alignment.Bottom),
+                exit = fadeOut(animationSpec = tween(120)) +
+                    shrinkVertically(animationSpec = tween(190, easing = FastOutSlowInEasing), shrinkTowards = Alignment.Bottom),
             ) {
-                NavChip("Play", current == AppPanel.Game, showTapTargets) { onPanelSelected(AppPanel.Game) }
-                NavChip("Trainer", current == AppPanel.Trainer, showTapTargets) { onPanelSelected(AppPanel.Trainer) }
-                NavChip("Stats", current == AppPanel.Stats, showTapTargets) { onPanelSelected(AppPanel.Stats) }
-                NavChip("Settings", current == AppPanel.Settings, showTapTargets) { onPanelSelected(AppPanel.Settings) }
-                NavChip("About", current == AppPanel.About, showTapTargets) { onPanelSelected(AppPanel.About) }
+                SessionFooter(
+                    correct = correct,
+                    attempts = attempts,
+                    target = target,
+                    levelIndex = levelIndex,
+                    showTextLabels = showTextLabels,
+                    showTapTargets = showTapTargets,
+                    adaptiveMode = adaptiveMode,
+                    onLevelChange = onLevelChange,
+                    onReset = onReset,
+                )
             }
-            ProfileChip(profileName, avatar)
+            BottomNavigationTabs(
+                current = current,
+                showTapTargets = showTapTargets,
+                onPanelSelected = onPanelSelected,
+            )
         }
     }
 }
 
 @Composable
-private fun NavChip(label: String, active: Boolean, showTapTargets: Boolean, onClick: () -> Unit) {
-    val color by animateColorAsState(
-        targetValue = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant,
-        label = "nav-chip-color",
-    )
-    val chipScale by animateFloatAsState(
-        targetValue = if (active) 1.04f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
-        label = "nav-chip-scale",
-    )
-    Surface(
-        color = color,
-        contentColor = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-        shape = CircleShape,
+private fun BottomNavigationTabs(
+    current: AppPanel,
+    showTapTargets: Boolean,
+    onPanelSelected: (AppPanel) -> Unit,
+) {
+    Row(
         modifier = Modifier
-            .scale(chipScale)
-            .tapTargetOverlay(showTapTargets)
-            .clip(CircleShape)
-            .clickable(onClick = onClick),
+            .fillMaxWidth()
+            .padding(horizontal = 10.dp, vertical = 4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+        BottomNavigationTab(
+            label = "Play",
+            active = current == AppPanel.Game,
+            showTapTargets = showTapTargets,
+            onClick = { onPanelSelected(AppPanel.Game) },
+            modifier = Modifier.weight(1f),
+        )
+        BottomNavigationTab(
+            label = "Train",
+            active = current == AppPanel.Trainer,
+            showTapTargets = showTapTargets,
+            onClick = { onPanelSelected(AppPanel.Trainer) },
+            modifier = Modifier.weight(1f),
+        )
+        BottomNavigationTab(
+            label = "Stats",
+            active = current == AppPanel.Stats,
+            showTapTargets = showTapTargets,
+            onClick = { onPanelSelected(AppPanel.Stats) },
+            modifier = Modifier.weight(1f),
+        )
+        BottomNavigationTab(
+            label = "Settings",
+            active = current == AppPanel.Settings,
+            showTapTargets = showTapTargets,
+            onClick = { onPanelSelected(AppPanel.Settings) },
+            modifier = Modifier.weight(1f),
+        )
+        BottomNavigationTab(
+            label = "About",
+            active = current == AppPanel.About,
+            showTapTargets = showTapTargets,
+            onClick = { onPanelSelected(AppPanel.About) },
+            modifier = Modifier.weight(1f),
         )
     }
 }
 
 @Composable
-private fun ProfileChip(profileName: String, avatar: String) {
+private fun BottomNavigationTab(
+    label: String,
+    active: Boolean,
+    showTapTargets: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val color by animateColorAsState(
+        targetValue = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
+        animationSpec = tween(180, easing = FastOutSlowInEasing),
+        label = "bottom-tab-color",
+    )
+    val contentColor = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+    val scale by animateFloatAsState(
+        targetValue = if (active) 1f else 0.98f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = Spring.StiffnessMedium),
+        label = "bottom-tab-scale",
+    )
+    val shape = RoundedCornerShape(18.dp)
+
     Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        shape = CircleShape,
-        modifier = Modifier.widthIn(min = 72.dp, max = 116.dp),
+        color = color,
+        contentColor = contentColor,
+        tonalElevation = if (active) 4.dp else 0.dp,
+        shape = shape,
+        modifier = modifier
+            .height(48.dp)
+            .scale(scale)
+            .tapTargetOverlay(showTapTargets, Color(0xFF00D7FF))
+            .clip(shape)
+            .clickable(onClick = onClick)
+            .semantics { contentDescription = label },
     ) {
-        Text(
-            text = "$avatar $profileName",
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            style = MaterialTheme.typography.labelMedium,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-        )
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 2.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = label,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = if (active) FontWeight.Black else FontWeight.Bold,
+            )
+        }
     }
 }
 
@@ -1670,84 +1693,78 @@ private fun SessionFooter(
     onLevelChange: (Int) -> Unit,
     onReset: () -> Unit,
 ) {
-    Surface(
-        tonalElevation = 6.dp,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 18.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(horizontal = 18.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            val percent = if (attempts > 0) (100f * correct / attempts).roundToInt() else 0
+        val percent = if (attempts > 0) (100f * correct / attempts).roundToInt() else 0
+        AnimatedContent(
+            targetState = "$correct / $attempts",
+            transitionSpec = {
+                (fadeIn(animationSpec = tween(140, easing = FastOutSlowInEasing)) +
+                    slideInVertically(animationSpec = tween(180, easing = FastOutSlowInEasing)) { it / 3 })
+                    .togetherWith(
+                        fadeOut(animationSpec = tween(90)) +
+                            slideOutVertically(animationSpec = tween(140, easing = FastOutSlowInEasing)) { -it / 3 }
+                    )
+            },
+            label = "score-transition",
+        ) { score ->
+            Text(
+                text = score,
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Black,
+            )
+        }
+        AnimatedContent(
+            targetState = if (attempts > 0) "$percent%" else "Target $target",
+            transitionSpec = {
+                fadeIn(animationSpec = tween(140, easing = FastOutSlowInEasing))
+                    .togetherWith(fadeOut(animationSpec = tween(90)))
+            },
+            label = "percent-transition",
+        ) { value ->
+            Text(
+                text = value,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
             AnimatedContent(
-                targetState = "$correct / $attempts",
+                targetState = adaptiveMode to levelIndex,
                 transitionSpec = {
-                    (fadeIn(animationSpec = tween(140, easing = FastOutSlowInEasing)) +
-                        slideInVertically(animationSpec = tween(180, easing = FastOutSlowInEasing)) { it / 3 })
+                    (fadeIn(animationSpec = tween(160, easing = FastOutSlowInEasing)) +
+                        slideInVertically(animationSpec = tween(220, easing = FastOutSlowInEasing)) { it / 2 } +
+                        scaleIn(animationSpec = tween(220, easing = FastOutSlowInEasing), initialScale = 0.94f))
                         .togetherWith(
                             fadeOut(animationSpec = tween(90)) +
-                                slideOutVertically(animationSpec = tween(140, easing = FastOutSlowInEasing)) { -it / 3 }
+                                slideOutVertically(animationSpec = tween(160, easing = FastOutSlowInEasing)) { -it / 2 } +
+                                scaleOut(animationSpec = tween(140), targetScale = 0.96f)
                         )
                 },
-                label = "score-transition",
-            ) { score ->
-                Text(
-                    text = score,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Black,
-                )
-            }
-            AnimatedContent(
-                targetState = if (attempts > 0) "$percent%" else "Target $target",
-                transitionSpec = {
-                    fadeIn(animationSpec = tween(140, easing = FastOutSlowInEasing))
-                        .togetherWith(fadeOut(animationSpec = tween(90)))
-                },
-                label = "percent-transition",
-            ) { value ->
-                Text(
-                    text = value,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                AnimatedContent(
-                    targetState = adaptiveMode to levelIndex,
-                    transitionSpec = {
-                        (fadeIn(animationSpec = tween(160, easing = FastOutSlowInEasing)) +
-                            slideInVertically(animationSpec = tween(220, easing = FastOutSlowInEasing)) { it / 2 } +
-                            scaleIn(animationSpec = tween(220, easing = FastOutSlowInEasing), initialScale = 0.94f))
-                            .togetherWith(
-                                fadeOut(animationSpec = tween(90)) +
-                                    slideOutVertically(animationSpec = tween(160, easing = FastOutSlowInEasing)) { -it / 2 } +
-                                    scaleOut(animationSpec = tween(140), targetScale = 0.96f)
-                            )
-                    },
-                    label = "level-status-transition",
-                ) { state ->
-                    if (state.first) {
-                        AdaptiveLevelStatus(levelIndex = state.second, showTextLabels = showTextLabels)
-                    } else {
-                        LevelSelector(
-                            levelIndex = state.second,
-                            showTextLabels = showTextLabels,
-                            showTapTargets = showTapTargets,
-                            onLevelChange = onLevelChange,
-                        )
-                    }
+                label = "level-status-transition",
+            ) { state ->
+                if (state.first) {
+                    AdaptiveLevelStatus(levelIndex = state.second, showTextLabels = showTextLabels)
+                } else {
+                    LevelSelector(
+                        levelIndex = state.second,
+                        showTextLabels = showTextLabels,
+                        showTapTargets = showTapTargets,
+                        onLevelChange = onLevelChange,
+                    )
                 }
             }
-            TextButton(
-                onClick = onReset,
-                modifier = Modifier.tapTargetOverlay(showTapTargets, Color(0xFF00D7FF)),
-            ) {
-                Text("Reset")
-            }
+        }
+        TextButton(
+            onClick = onReset,
+            modifier = Modifier.tapTargetOverlay(showTapTargets, Color(0xFF00D7FF)),
+        ) {
+            Text("Reset")
         }
     }
 }
