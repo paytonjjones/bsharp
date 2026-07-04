@@ -115,21 +115,22 @@ import kotlin.math.roundToInt
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        hideStatusBarIconsWithoutCutout()
+        configureWindowWithoutCutout()
 
         setContent {
             BSharpTheme {
                 BSharpNativeApp()
             }
         }
+        window.decorView.post { hideStatusBarIconsWithoutCutout() }
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
         super.onWindowFocusChanged(hasFocus)
-        if (hasFocus) hideStatusBarIconsWithoutCutout()
+        if (hasFocus) window.decorView.post { hideStatusBarIconsWithoutCutout() }
     }
 
-    private fun hideStatusBarIconsWithoutCutout() {
+    private fun configureWindowWithoutCutout() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             window.attributes = window.attributes.apply {
                 layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_NEVER
@@ -137,7 +138,13 @@ class MainActivity : ComponentActivity() {
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             WindowCompat.setDecorFitsSystemWindows(window, true)
-            window.insetsController?.let { controller ->
+        }
+    }
+
+    private fun hideStatusBarIconsWithoutCutout() {
+        configureWindowWithoutCutout()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            window.decorView.windowInsetsController?.let { controller ->
                 controller.hide(WindowInsets.Type.statusBars())
                 controller.systemBarsBehavior = WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             }
