@@ -640,10 +640,8 @@ private fun BSharpNativeApp() {
                 levelIndex = levelIndex,
                 showTextLabels = preferTextLabels,
                 showTapTargets = showTapTargets,
-                adaptiveMode = adaptiveMode,
                 onLevelChange = ::changeLevel,
                 onReset = { showResetDialog = true },
-                onAdaptiveLevelClick = { panel = AppPanel.Settings },
                 onPanelSelected = { panel = it },
             )
         },
@@ -764,10 +762,8 @@ private fun BottomAppChrome(
     levelIndex: Int,
     showTextLabels: Boolean,
     showTapTargets: Boolean,
-    adaptiveMode: Boolean,
     onLevelChange: (Int) -> Unit,
     onReset: () -> Unit,
-    onAdaptiveLevelClick: () -> Unit,
     onPanelSelected: (AppPanel) -> Unit,
 ) {
     Surface(
@@ -796,10 +792,8 @@ private fun BottomAppChrome(
                     levelIndex = levelIndex,
                     showTextLabels = showTextLabels,
                     showTapTargets = showTapTargets,
-                    adaptiveMode = adaptiveMode,
                     onLevelChange = onLevelChange,
                     onReset = onReset,
-                    onAdaptiveLevelClick = onAdaptiveLevelClick,
                 )
             }
             BottomNavigationTabs(
@@ -1741,43 +1735,6 @@ private fun LevelSelector(
 }
 
 @Composable
-private fun AdaptiveLevelStatus(
-    levelIndex: Int,
-    showTextLabels: Boolean,
-    showTapTargets: Boolean,
-    onClick: () -> Unit,
-) {
-    val current = Chords[levelIndex]
-    val shape = RoundedCornerShape(18.dp)
-    Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-        shape = shape,
-        modifier = Modifier
-            .widthIn(max = 190.dp)
-            .tapTargetOverlay(showTapTargets, Color(0xFF00D7FF))
-            .clip(shape)
-            .clickable(onClick = onClick)
-            .semantics { contentDescription = "Adaptive level settings" },
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            LevelSwatch(current)
-            Text(
-                text = if (showTextLabels) "Adaptive Level $levelIndex: ${current.display}" else "Level $levelIndex",
-                style = MaterialTheme.typography.labelLarge,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
-    }
-}
-
-@Composable
 private fun SessionFooter(
     correct: Int,
     attempts: Int,
@@ -1785,10 +1742,8 @@ private fun SessionFooter(
     levelIndex: Int,
     showTextLabels: Boolean,
     showTapTargets: Boolean,
-    adaptiveMode: Boolean,
     onLevelChange: (Int) -> Unit,
     onReset: () -> Unit,
-    onAdaptiveLevelClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -1832,7 +1787,7 @@ private fun SessionFooter(
         }
         Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
             AnimatedContent(
-                targetState = adaptiveMode to levelIndex,
+                targetState = levelIndex,
                 transitionSpec = {
                     (fadeIn(animationSpec = tween(160, easing = FastOutSlowInEasing)) +
                         slideInVertically(animationSpec = tween(220, easing = FastOutSlowInEasing)) { it / 2 } +
@@ -1845,21 +1800,12 @@ private fun SessionFooter(
                 },
                 label = "level-status-transition",
             ) { state ->
-                if (state.first) {
-                    AdaptiveLevelStatus(
-                        levelIndex = state.second,
-                        showTextLabels = showTextLabels,
-                        showTapTargets = showTapTargets,
-                        onClick = onAdaptiveLevelClick,
-                    )
-                } else {
-                    LevelSelector(
-                        levelIndex = state.second,
-                        showTextLabels = showTextLabels,
-                        showTapTargets = showTapTargets,
-                        onLevelChange = onLevelChange,
-                    )
-                }
+                LevelSelector(
+                    levelIndex = state,
+                    showTextLabels = showTextLabels,
+                    showTapTargets = showTapTargets,
+                    onLevelChange = onLevelChange,
+                )
             }
         }
         TextButton(
