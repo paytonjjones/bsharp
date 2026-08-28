@@ -212,6 +212,15 @@
                     </select>
                 </div>
                 <div class="entry-row">
+                    <label for="auto_play_setting">Auto Play:</label>
+                    <input type="checkbox" id="auto_play_setting" class="entry">
+                </div>
+                <div class="entry-row">
+                    <label for="auto_play_duration_setting">Auto Play Duration:</label>
+                    <input type="range" id="auto_play_duration_setting" class="entry" min="1" max="10" step="1" value="5" oninput="update_auto_play_duration_label()">
+                    <output id="auto_play_duration_value" for="auto_play_duration_setting">5 seconds</output>
+                </div>
+                <div class="entry-row">
                     <label>Pin screen:</label>
                     <button class="button settings-button" type="button" onclick="show_screen_pinning_info()">
                         <i class="fa fa-thumb-tack"></i> Info

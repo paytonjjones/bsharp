@@ -2,6 +2,7 @@ import { loadState, getCurrentProfile, isRecent, STATE } from './state';
 import {
     playAudio, selectFlagWrapper, nextAudio, resetStats, changeSelector,
     changeInstrumentSelector, onTrainerOpen, playChord, getEmojiLock, stopCurrentAudio,
+    cancelAutoPlay,
     _CORRECT_COLOR
 } from './game';
 import { initOnboarding } from './onboarding';
@@ -14,7 +15,7 @@ import {
     openProfileAdder, closeProfileAdder, addProfile, submitProfileChanges,
     deleteProfile, enableDownload, triggerEasterEgg, downloadState,
     setCurrentProfile, resetCatEmoji, registerGameCallbacks,
-    showScreenPinningInfo, closeScreenPinningModal,
+    showScreenPinningInfo, closeScreenPinningModal, updateAutoPlayDurationLabel,
 } from './ui';
 import { cleanSessionHistory } from './session_cleanup';
 import { startNextArrowFill, resetNextArrowFill } from './nextArrowAnimation';
@@ -46,6 +47,7 @@ w.download_state = downloadState;
 w.play_chord = playChord;
 w.show_screen_pinning_info = showScreenPinningInfo;
 w.close_screen_pinning_modal = closeScreenPinningModal;
+w.update_auto_play_duration_label = updateAutoPlayDurationLabel;
 w.__bsharp_correct_color = () => _CORRECT_COLOR;
 w.__bsharp_start_next_arrow_fill = startNextArrowFill;
 w.__bsharp_reset_next_arrow_fill = resetNextArrowFill;
@@ -150,6 +152,7 @@ document.addEventListener('click', (e) => {
     if (target.closest('#play-button, #next-chord')) return;
     if (target.closest('[onclick], button, a, select, input')) {
         stopCurrentAudio();
+        cancelAutoPlay();
     }
 }, true);
 
