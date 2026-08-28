@@ -23,6 +23,10 @@ export const DEFAULT_PERSIST_REACTION_FACE = true;
 export const DEFAULT_ENABLE_ONBOARDING_HINTS = true;
 export const DEFAULT_COLOR_SCHEME = 'dark';
 export const DEFAULT_CHORD_SELECTION_MODE = 'random';
+export const DEFAULT_AUTO_PLAY = true;
+export const DEFAULT_AUTO_PLAY_DURATION_SECONDS = 5;
+export const MIN_AUTO_PLAY_DURATION_SECONDS = 1;
+export const MAX_AUTO_PLAY_DURATION_SECONDS = 10;
 
 export let STATE: AppState = null!;
 export let _SESSION_HISTORY: Record<string, Record<string, SessionStats[]>> | null = null;
@@ -71,6 +75,8 @@ export function newProfile(
     enableOnboardingHints = DEFAULT_ENABLE_ONBOARDING_HINTS,
     colorScheme = DEFAULT_COLOR_SCHEME,
     chordSelectionMode = DEFAULT_CHORD_SELECTION_MODE,
+    autoPlay = DEFAULT_AUTO_PLAY,
+    autoPlayDurationSeconds = DEFAULT_AUTO_PLAY_DURATION_SECONDS,
 ): Profile {
     if (id === undefined || id === null) {
         id = GUEST_USER_ID + 1;
@@ -92,6 +98,8 @@ export function newProfile(
         enable_onboarding_hints: enableOnboardingHints,
         color_scheme: colorScheme,
         chord_selection_mode: chordSelectionMode,
+        auto_play: autoPlay,
+        auto_play_duration_seconds: autoPlayDurationSeconds,
         stats: newStats(),
         current_chord: DEFAULT_CHORD,
         current_instrument: DEFAULT_INSTRUMENT,
@@ -109,6 +117,8 @@ export function initializeProfileDefaults(profile: Profile): void {
         enable_onboarding_hints: DEFAULT_ENABLE_ONBOARDING_HINTS,
         color_scheme: DEFAULT_COLOR_SCHEME,
         chord_selection_mode: DEFAULT_CHORD_SELECTION_MODE,
+        auto_play: DEFAULT_AUTO_PLAY,
+        auto_play_duration_seconds: DEFAULT_AUTO_PLAY_DURATION_SECONDS,
         current_instrument: DEFAULT_INSTRUMENT,
     };
 
@@ -116,6 +126,20 @@ export function initializeProfileDefaults(profile: Profile): void {
         if ((profile as unknown as Record<string, unknown>)[key] === undefined) {
             (profile as unknown as Record<string, unknown>)[key] = defaultVal;
         }
+    }
+
+    const profileRecord = profile as unknown as Record<string, unknown>;
+    if (typeof profileRecord.auto_play !== 'boolean') {
+        profileRecord.auto_play = DEFAULT_AUTO_PLAY;
+    }
+    const duration = profileRecord.auto_play_duration_seconds;
+    if (
+        typeof duration !== 'number' ||
+        !Number.isInteger(duration) ||
+        duration < MIN_AUTO_PLAY_DURATION_SECONDS ||
+        duration > MAX_AUTO_PLAY_DURATION_SECONDS
+    ) {
+        profileRecord.auto_play_duration_seconds = DEFAULT_AUTO_PLAY_DURATION_SECONDS;
     }
 }
 
