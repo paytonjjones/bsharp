@@ -10,6 +10,7 @@ import { getCurrentCoefficients, updateStartTimeIfNeeded, updateStats, normalize
 import { getAudioFiles, audioFileElem, playChordFiles, preloadAudio } from './audio';
 import { populateFlags, updateStatsDisplay, resetCatEmoji, setCatEmoji, setChordDisplayMode, populateProfileUiElements } from './ui';
 import { dismissOnboardingStep, showOnboardingGuessPrompt, showOnboardingGoNextPrompt, showOnboardingPlayPrompt } from './onboarding';
+import { startNextArrowFill, resetNextArrowFill } from './nextArrowAnimation';
 
 let _COLORS: string[] | null = null;
 let _CHORDS_ON = false;
@@ -22,6 +23,7 @@ let _EMOJI_LOCK = false;
 let _CURRENT_COEFFICIENTS: number[] | null = null;
 let _TRAINER_PRELOADED = false;
 let _PERSIST_REACTION_FACE_ENABLED = false;
+let _AUTO_PLAY_TIMER: number | null = null;
 export function getTestDeterministicColor(): string | null {
     return (window as unknown as Record<string, unknown>).__bsharp_test_deterministic_color as string | null ?? null;
 }
@@ -43,6 +45,30 @@ export function isBlackLevel(level?: number): boolean {
 
 export function chordsOn(): boolean {
     return _CHORDS_ON;
+}
+
+export function cancelAutoPlay(): void {
+    if (_AUTO_PLAY_TIMER !== null) {
+        window.clearTimeout(_AUTO_PLAY_TIMER);
+        _AUTO_PLAY_TIMER = null;
+    }
+    resetNextArrowFill();
+}
+
+function scheduleAutoPlay(): void {
+    cancelAutoPlay();
+
+    const profile = getCurrentProfile();
+    if (!profile.auto_play) return;
+
+    const durationMs = profile.auto_play_duration_seconds * 1000;
+    startNextArrowFill(durationMs);
+    _AUTO_PLAY_TIMER = window.setTimeout(() => {
+        _AUTO_PLAY_TIMER = null;
+        // Keep the completed fill visible for the 100 ms pause. nextAudio()
+        // resets it immediately before loading the next question.
+        nextAudio();
+    }, durationMs + 100);
 }
 
 function setPlayedAfter(delay: number): void {
@@ -90,6 +116,7 @@ export function selectNewColor(): void {
 }
 
 export function populateAudio(): void {
+    cancelAutoPlay();
     selectNewColor();
     stopCurrentAudio();
 
@@ -164,9 +191,12 @@ export function selectFlagWrapper(wrapperElem: HTMLElement): void {
     // Single note trainer disabled for now
     const nextButton = document.getElementById('next-chord');
     if (nextButton) nextButton.classList.remove('deactivated');
+
+    scheduleAutoPlay();
 }
 
 export function nextAudio(): void {
+    cancelAutoPlay();
     const nextButton = document.getElementById('next-chord');
     if (!nextButton || nextButton.classList.contains('deactivated')) return;
 

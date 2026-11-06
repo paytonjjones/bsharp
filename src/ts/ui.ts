@@ -6,7 +6,8 @@ import {
     DEFAULT_SHOW_CHORD_MODE, DEFAULT_REVEAL_CHORD_MODE, DEFAULT_CHORD_DISPLAY_MODE,
     DEFAULT_SINGLE_NOTE_MODE, DEFAULT_SINGLE_NOTE_CORRECTNESS_MODE,
     DEFAULT_PERSIST_REACTION_FACE, DEFAULT_ENABLE_ONBOARDING_HINTS, DEFAULT_COLOR_SCHEME,
-    DEFAULT_CHORD_SELECTION_MODE, DEFAULT_INSTRUMENT,
+    DEFAULT_CHORD_SELECTION_MODE, DEFAULT_INSTRUMENT, DEFAULT_AUTO_PLAY,
+    DEFAULT_AUTO_PLAY_DURATION_SECONDS,
 } from './state';
 import {
     calculatePercentage, calculateNeutralLevel, getCatEmoji, normalizeStatsObject
@@ -396,7 +397,8 @@ function getProfileSettings(): {
     chord_display_mode: string; single_note_mode: string;
     single_note_correctness_mode: string; persist_reaction_face: boolean;
     enable_onboarding_hints: boolean; color_scheme: string;
-    chord_selection_mode: string;
+    chord_selection_mode: string; auto_play: boolean;
+    auto_play_duration_seconds: number;
 } {
     const profileContainer = document.getElementById('profile-info-container')!;
     const profileNameElem = document.getElementById('profile_name_setting') as HTMLInputElement;
@@ -422,6 +424,8 @@ function getProfileSettings(): {
     const enableOnboardingHints = (document.getElementById('enable_onboarding_hints_setting') as HTMLInputElement).checked;
     const colorScheme = (document.getElementById('color-scheme-selector') as HTMLSelectElement).value;
     const chordSelectionMode = (document.getElementById('chord-selection-mode-selector') as HTMLSelectElement).value;
+    const autoPlay = (document.getElementById('auto_play_setting') as HTMLInputElement).checked;
+    const autoPlayDurationSeconds = Number((document.getElementById('auto_play_duration_setting') as HTMLInputElement).value);
 
     return {
         name: profileName,
@@ -437,7 +441,17 @@ function getProfileSettings(): {
         enable_onboarding_hints: enableOnboardingHints,
         color_scheme: colorScheme,
         chord_selection_mode: chordSelectionMode,
+        auto_play: autoPlay,
+        auto_play_duration_seconds: autoPlayDurationSeconds,
     };
+}
+
+export function updateAutoPlayDurationLabel(): void {
+    const durationElem = document.getElementById('auto_play_duration_setting') as HTMLInputElement | null;
+    const labelElem = document.getElementById('auto_play_duration_value');
+    if (!durationElem || !labelElem) return;
+    const duration = Number(durationElem.value);
+    labelElem.textContent = `${duration} second${duration === 1 ? '' : 's'}`;
 }
 
 function clearProfileDialog(): void {
@@ -472,6 +486,12 @@ function clearProfileDialog(): void {
 
     const chordSelectionModeSelector = document.getElementById('chord-selection-mode-selector') as HTMLSelectElement;
     if (chordSelectionModeSelector) chordSelectionModeSelector.value = DEFAULT_CHORD_SELECTION_MODE;
+
+    const autoPlayElem = document.getElementById('auto_play_setting') as HTMLInputElement;
+    if (autoPlayElem) autoPlayElem.checked = DEFAULT_AUTO_PLAY;
+    const autoPlayDurationElem = document.getElementById('auto_play_duration_setting') as HTMLInputElement;
+    if (autoPlayDurationElem) autoPlayDurationElem.value = String(DEFAULT_AUTO_PLAY_DURATION_SECONDS);
+    updateAutoPlayDurationLabel();
 
     profileDialog.dataset.id = 'null';
 }
@@ -508,6 +528,9 @@ function populateProfileSettings(): void {
     (document.getElementById('enable_onboarding_hints_setting') as HTMLInputElement).checked = profile.enable_onboarding_hints;
     (document.getElementById('color-scheme-selector') as HTMLSelectElement).value = profile.color_scheme;
     (document.getElementById('chord-selection-mode-selector') as HTMLSelectElement).value = profile.chord_selection_mode;
+    (document.getElementById('auto_play_setting') as HTMLInputElement).checked = profile.auto_play;
+    (document.getElementById('auto_play_duration_setting') as HTMLInputElement).value = String(profile.auto_play_duration_seconds);
+    updateAutoPlayDurationLabel();
 
     profileDialog.dataset.id = String(profile.id);
 
@@ -562,6 +585,9 @@ export function openProfileAdder(): void {
     (document.getElementById('enable_onboarding_hints_setting') as HTMLInputElement).checked = DEFAULT_ENABLE_ONBOARDING_HINTS;
     (document.getElementById('color-scheme-selector') as HTMLSelectElement).value = DEFAULT_COLOR_SCHEME;
     (document.getElementById('chord-selection-mode-selector') as HTMLSelectElement).value = DEFAULT_CHORD_SELECTION_MODE;
+    (document.getElementById('auto_play_setting') as HTMLInputElement).checked = DEFAULT_AUTO_PLAY;
+    (document.getElementById('auto_play_duration_setting') as HTMLInputElement).value = String(DEFAULT_AUTO_PLAY_DURATION_SECONDS);
+    updateAutoPlayDurationLabel();
 
     // Pre-select the first icon
     const firstIcon = profileContainer.querySelector("input[name='profile_icon_selector']") as HTMLInputElement | null;
@@ -599,6 +625,8 @@ export function addProfile(): void {
             newProfileValues.enable_onboarding_hints,
             newProfileValues.color_scheme,
             newProfileValues.chord_selection_mode,
+            newProfileValues.auto_play,
+            newProfileValues.auto_play_duration_seconds,
         );
         STATE.profiles[profile.id] = profile;
         saveState();
@@ -636,6 +664,8 @@ export function submitProfileChanges(): void {
     currentProfile.enable_onboarding_hints = profileValues.enable_onboarding_hints;
     currentProfile.color_scheme = profileValues.color_scheme;
     currentProfile.chord_selection_mode = profileValues.chord_selection_mode;
+    currentProfile.auto_play = profileValues.auto_play;
+    currentProfile.auto_play_duration_seconds = profileValues.auto_play_duration_seconds;
 
     saveState();
 

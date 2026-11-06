@@ -9,7 +9,12 @@ vi.stubGlobal('localStorage', {
     clear: () => { for (const k in store) delete store[k]; },
 });
 
-import { DEFAULT_INSTRUMENT, initializeProfileDefaults } from '../../src/ts/state';
+import {
+    DEFAULT_AUTO_PLAY,
+    DEFAULT_AUTO_PLAY_DURATION_SECONDS,
+    DEFAULT_INSTRUMENT,
+    initializeProfileDefaults,
+} from '../../src/ts/state';
 import type { Profile } from '../../src/ts/types';
 
 describe('initializeProfileDefaults', () => {
@@ -21,6 +26,8 @@ describe('initializeProfileDefaults', () => {
         expect(partial.chord_display_mode).toBe('shapes_and_letters');
         expect(partial.persist_reaction_face).toBe(true);
         expect(partial.current_instrument).toBe(DEFAULT_INSTRUMENT);
+        expect(partial.auto_play).toBe(DEFAULT_AUTO_PLAY);
+        expect(partial.auto_play_duration_seconds).toBe(DEFAULT_AUTO_PLAY_DURATION_SECONDS);
     });
 
     it('does not overwrite existing values', () => {
@@ -39,5 +46,25 @@ describe('initializeProfileDefaults', () => {
         } as unknown as Profile;
         initializeProfileDefaults(profile);
         expect(profile.current_instrument).toBe('guitar');
+    });
+
+    it('preserves existing auto-play settings', () => {
+        const profile = {
+            name: 'Test', icon: 'fa-user', id: 1,
+            auto_play: false,
+            auto_play_duration_seconds: 8,
+        } as unknown as Profile;
+        initializeProfileDefaults(profile);
+        expect(profile.auto_play).toBe(false);
+        expect(profile.auto_play_duration_seconds).toBe(8);
+    });
+
+    it('uses the default duration for an invalid saved duration', () => {
+        const profile = {
+            name: 'Test', icon: 'fa-user', id: 1,
+            auto_play_duration_seconds: 11,
+        } as unknown as Profile;
+        initializeProfileDefaults(profile);
+        expect(profile.auto_play_duration_seconds).toBe(DEFAULT_AUTO_PLAY_DURATION_SECONDS);
     });
 });

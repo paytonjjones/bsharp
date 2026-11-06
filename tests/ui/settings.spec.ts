@@ -165,3 +165,21 @@ test("color scheme setting saved to profile", async ({ page }) => {
   await openProfilePanel(page);
   await expect(page.locator("#color-scheme-selector")).toHaveValue("light");
 });
+
+test("auto play settings default and persist on a profile", async ({ page }) => {
+  page.on("dialog", (dialog) => dialog.dismiss());
+
+  await openProfilePanel(page);
+  await expect(page.locator("#auto_play_setting")).toBeChecked();
+  await expect(page.locator("#auto_play_duration_setting")).toHaveValue("5");
+  await expect(page.locator("#auto_play_duration_value")).toHaveText("5 seconds");
+
+  await page.locator("#auto_play_setting").uncheck();
+  await page.locator("#auto_play_duration_setting").fill("8");
+  await expect(page.locator("#auto_play_duration_value")).toHaveText("8 seconds");
+  await page.locator("#submit-changes-button").click();
+
+  await openProfilePanel(page);
+  await expect(page.locator("#auto_play_setting")).not.toBeChecked();
+  await expect(page.locator("#auto_play_duration_setting")).toHaveValue("8");
+});

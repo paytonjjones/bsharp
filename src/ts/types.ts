@@ -58,6 +58,8 @@ export interface Profile {
     enable_onboarding_hints: boolean;
     color_scheme: string;
     chord_selection_mode: string;
+    auto_play: boolean;
+    auto_play_duration_seconds: number;
     stats: SessionStats;
     current_chord: string;
     current_instrument: string;
