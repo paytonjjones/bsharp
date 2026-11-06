@@ -27,4 +27,15 @@ make android-release
 
 Bsharp -> Test and release -> Production -> Create new release
 
+Release name: use `<versionCode> (<versionName>)`, for example `7 (1.6)`.
+
+Release notes: copy the release bullets from [CHANGELOG.md](../CHANGELOG.md) into the "What's new" field. Wrap them in the locale tags shown below:
+
+```
+<en-US>
+- Update Android compatibility for current Android versions
+- Improve system-bar display and reduce release app size
+</en-US>
+```
+
 Drag and drop the [.aab](../android/app/build/outputs/bundle/release/app-release.aab)

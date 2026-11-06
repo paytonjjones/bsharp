@@ -92,7 +92,7 @@ Tests exist to protect behavior, not to increase coverage or test count. Follow 
 
 ## Releases
 
-See [`dev/RELEASE.md`](RELEASE.md) for release instructions.
+See [`dev/RELEASE.md`](dev/RELEASE.md) for release instructions.
 
 ## TODO
 
