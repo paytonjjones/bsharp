@@ -1,5 +1,9 @@
 # Changelog
 
+## v1.6 - 2026-11-06
+
+- Add configurable auto play with an adjustable delay between questions
+
 ## v1.5 - 2026-07-23
 
 - Update Android compatibility for current Android versions
